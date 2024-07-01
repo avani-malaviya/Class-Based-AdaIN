@@ -49,7 +49,7 @@ def mask_transform(size, crop):
     return transform
 
 
-def visualize_feature_maps(vgg, content, output, output_name):
+def visualize_feature_maps(vgg, content_f, output, output_name):
     # Normalize feature maps
     output_f = vgg(output)
 
@@ -204,13 +204,13 @@ for content_path in content_paths:
         style = style.to(device)
         content = content.to(device)
         with torch.no_grad():
-            output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
+            output_cuda, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
                                     args.alpha, interpolation_weights)
-        output = output.cpu()
+        output = output_cuda.cpu()
         output_name = output_dir / '{:s}_interpolation{:s}'.format(
             content_path.stem, args.save_ext)
         save_image(output, str(output_name))
-        visualize_feature_maps(vgg, content_f, output, output_name)
+        visualize_feature_maps(vgg, content_f, output_cuda, output_name)
 
     else:
         for style_path in style_paths:
@@ -230,11 +230,11 @@ for content_path in content_paths:
             style_sem = style_sem.to(device).unsqueeze(0)
 
             with torch.no_grad():
-                output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
+                output_cuda, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
                                         args.alpha)
-            output = output.cpu()
+            output = output_cuda.cpu()
 
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
             save_image(output, str(output_name))
-            visualize_feature_maps(vgg, content_f, output, output_name)
+            visualize_feature_maps(vgg, content_f, output_cuda, output_name)
