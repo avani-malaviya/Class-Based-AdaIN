@@ -49,10 +49,8 @@ def mask_transform(size, crop):
     return transform
 
 
-def visualize_feature_maps(vgg, content_f, output, output_name):
+def visualize_feature_maps(content_f, output_f, output_name):
     # Normalize feature maps
-    output_f = vgg(output)
-
     content_f = (content_f - content_f.min()) / (content_f.max() - content_f.min())
     output_f = (output_f - output_f.min()) / (output_f.max() - output_f.min())
     
@@ -204,13 +202,14 @@ for content_path in content_paths:
         style = style.to(device)
         content = content.to(device)
         with torch.no_grad():
-            output_cuda, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
+            output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
                                     args.alpha, interpolation_weights)
-        output = output_cuda.cpu()
+            output_f = vgg(output)
+        output = output.cpu()
         output_name = output_dir / '{:s}_interpolation{:s}'.format(
             content_path.stem, args.save_ext)
         save_image(output, str(output_name))
-        visualize_feature_maps(vgg, content_f, output_cuda, output_name)
+        visualize_feature_maps(content_f, output_f, output_name)
 
     else:
         for style_path in style_paths:
@@ -230,11 +229,12 @@ for content_path in content_paths:
             style_sem = style_sem.to(device).unsqueeze(0)
 
             with torch.no_grad():
-                output_cuda, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
+                output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
                                         args.alpha)
-            output = output_cuda.cpu()
+                output_f = vgg(output)
+            output = output.cpu()
 
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
             save_image(output, str(output_name))
-            visualize_feature_maps(vgg, content_f, output_cuda, output_name)
+            visualize_feature_maps(content_f, output_f, output_name)
