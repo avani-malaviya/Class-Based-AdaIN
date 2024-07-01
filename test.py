@@ -49,8 +49,11 @@ def mask_transform(size, crop):
     return transform
 
 
-def visualize_feature_maps(content_f, output_f, output, output_name):
+def visualize_feature_maps(vgg, content, output, output_name):
     # Normalize feature maps
+    content_f = vgg(content)
+    output_f = vgg(output)
+
     content_f = (content_f - content_f.min()) / (content_f.max() - content_f.min())
     output_f = (output_f - output_f.min()) / (output_f.max() - output_f.min())
     
@@ -208,7 +211,7 @@ for content_path in content_paths:
         output_name = output_dir / '{:s}_interpolation{:s}'.format(
             content_path.stem, args.save_ext)
         save_image(output, str(output_name))
-        visualize_feature_maps(vgg(content), vgg(output), output_name)
+        visualize_feature_maps(vgg, content, output, output_name)
 
     else:
         for style_path in style_paths:
@@ -235,4 +238,4 @@ for content_path in content_paths:
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
             save_image(output, str(output_name))
-            visualize_feature_maps(vgg(content), vgg(output), output_name)
+            visualize_feature_maps(vgg, content, output, output_name)
