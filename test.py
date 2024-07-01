@@ -49,6 +49,27 @@ def mask_transform(size, crop):
     return transform
 
 
+def visualize_feature_maps(content_f, output_f, output, output_name):
+    # Normalize feature maps
+    content_f = (content_f - content_f.min()) / (content_f.max() - content_f.min())
+    output_f = (output_f - output_f.min()) / (output_f.max() - output_f.min())
+    
+    # Create a grid of feature maps
+    num_features = content_f.size(1)
+    grid_size = int(np.ceil(np.sqrt(num_features)))
+    
+    feature_grid = torch.zeros(2 * grid_size, grid_size, content_f.size(2), content_f.size(3))
+    
+    for i in range(num_features):
+        row = i // grid_size
+        col = i % grid_size
+        feature_grid[2*row, col] = content_f[0, i]
+        feature_grid[2*row+1, col] = output_f[0, i]
+    
+    # Save the combined image
+    save_image(feature_grid, str(output_name.with_stem(output_name.stem + '_with_features')))
+
+
 def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
                    interpolation_weights=None):
     assert (0.0 <= alpha <= 1.0)
@@ -100,7 +121,7 @@ parser.add_argument('--output', type=str, default='output',
 # Advanced options
 parser.add_argument('--preserve_color', action='store_true',
                     help='If specified, preserve color of the content image')
-parser.add_argument('--alpha', type=float, default=1.0,
+parser.add_argument('--alpha', type=float, default=0.0,
                     help='The weight that controls the degree of \
                              stylization. Should be between 0 and 1')
 parser.add_argument(
@@ -187,6 +208,7 @@ for content_path in content_paths:
         output_name = output_dir / '{:s}_interpolation{:s}'.format(
             content_path.stem, args.save_ext)
         save_image(output, str(output_name))
+        visualize_feature_maps(vgg(content), vgg(output), output_name)
 
     else:
         for style_path in style_paths:
@@ -213,3 +235,4 @@ for content_path in content_paths:
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
             save_image(output, str(output_name))
+            visualize_feature_maps(vgg(content), vgg(output), output_name)
