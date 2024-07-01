@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import net
 from function import coral
 
+from matting import compute_lap
+
 def get_sem_map(img_path, mask_dir):
     # Process content mask
     match = re.match(r'(.*)\.png$', img_path.name)
@@ -210,6 +212,8 @@ content_mask_tf = mask_transform(args.content_size, args.crop)
 style_mask_tf = mask_transform(args.style_size, args.crop)
 
 for content_path in content_paths:
+    L = compute_lap(content_path)
+    print(L)
     if do_interpolation:
         style = torch.stack([style_tf(Image.open(p)) for p in style_paths])
         style_sem = torch.stack([get_sem_map(Path(p),args.style_mask_dir).to(device) for p in style_paths])
