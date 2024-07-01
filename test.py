@@ -63,7 +63,7 @@ def visualize_feature_maps(content_f, output_f, output_name):
     grid_size = int(np.ceil(np.sqrt(num_features)))
     
     # Create a large figure to hold all feature maps
-    fig, axs = plt.subplots(2, grid_size, figsize=(grid_size*2, 4), dpi=300)
+    fig, axs = plt.subplots(2, grid_size, figsize=(grid_size*2, 4), dpi=750)
     fig.subplots_adjust(hspace=0.1, wspace=0.1)
 
     for i in range(num_features):
