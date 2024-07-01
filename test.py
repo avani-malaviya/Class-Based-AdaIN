@@ -50,6 +50,10 @@ def mask_transform(size, crop):
 
 
 def visualize_feature_maps(content_f, output_f, output_name):
+    # Ensure the tensors are on CPU and detached from the computation graph
+    content_f = content_f.cpu().detach()
+    output_f = output_f.cpu().detach()
+
     # Normalize feature maps
     content_f = (content_f - content_f.min()) / (content_f.max() - content_f.min())
     output_f = (output_f - output_f.min()) / (output_f.max() - output_f.min())
@@ -58,17 +62,22 @@ def visualize_feature_maps(content_f, output_f, output_name):
     num_features = content_f.size(1)
     grid_size = int(np.ceil(np.sqrt(num_features)))
     
-    feature_grid = torch.zeros(2 * grid_size, grid_size, content_f.size(2), content_f.size(3))
+    feature_grid = torch.zeros(2, num_features, content_f.size(2), content_f.size(3))
     
     for i in range(num_features):
-        row = i // grid_size
-        col = i % grid_size
-        feature_grid[2*row, col] = content_f[0, i]
-        feature_grid[2*row+1, col] = output_f[0, i]
+        feature_grid[0, i] = content_f[0, i]
+        feature_grid[1, i] = output_f[0, i]
     
-    # Save the combined image
-    save_image(feature_grid, str(output_name.with_stem(output_name.stem + '_with_features')))
+    # Use make_grid to create a compatible grid
+    from torchvision.utils import make_grid
+    grid = make_grid(feature_grid, nrow=grid_size, padding=2, normalize=True, scale_each=True)
+    
+    # Convert to PIL Image and save
+    from torchvision.transforms import ToPILImage
+    img = ToPILImage()(grid)
+    img.save(str(output_name.with_stem(output_name.stem + '_feature_maps.png')))
 
+    
 
 def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
                    interpolation_weights=None):
