@@ -9,6 +9,7 @@ from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
 import numpy as np
+import matplotlib.pyplot as plt
 
 import net
 from function import coral
@@ -48,7 +49,6 @@ def mask_transform(size, crop):
     transform = transforms.Compose(transform_list)
     return transform
 
-
 def visualize_feature_maps(content_f, output_f, output_name):
     # Ensure the tensors are on CPU and detached from the computation graph
     content_f = content_f.cpu().detach()
@@ -62,22 +62,33 @@ def visualize_feature_maps(content_f, output_f, output_name):
     num_features = content_f.size(1)
     grid_size = int(np.ceil(np.sqrt(num_features)))
     
-    feature_grid = torch.zeros(2, num_features, content_f.size(2), content_f.size(3))
-    
-    for i in range(num_features):
-        feature_grid[0, i] = content_f[0, i]
-        feature_grid[1, i] = output_f[0, i]
-    
-    # Use make_grid to create a compatible grid
-    from torchvision.utils import make_grid
-    grid = make_grid(feature_grid, nrow=grid_size, padding=2, normalize=True, scale_each=True)
-    
-    # Convert to PIL Image and save
-    from torchvision.transforms import ToPILImage
-    img = ToPILImage()(grid)
-    img.save(str(output_name.with_stem(output_name.stem + '_feature_maps.png')))
+    # Create a large figure to hold all feature maps
+    fig, axs = plt.subplots(2, grid_size, figsize=(grid_size*2, 4))
+    fig.subplots_adjust(hspace=0.1, wspace=0.1)
 
-    
+    for i in range(num_features):
+        row = i // grid_size
+        col = i % grid_size
+        
+        # Content feature map
+        axs[0, col].imshow(content_f[0, i].numpy(), cmap='gray')
+        axs[0, col].axis('off')
+        
+        # Output feature map
+        axs[1, col].imshow(output_f[0, i].numpy(), cmap='gray')
+        axs[1, col].axis('off')
+
+    # Remove any unused subplots
+    for i in range(num_features, grid_size):
+        axs[0, i].axis('off')
+        axs[1, i].axis('off')
+
+    # Save the figure
+    plt.savefig(str(output_name.with_stem(output_name.stem + '_feature_maps.png')), 
+                dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.close(fig)
+
+
 
 def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
                    interpolation_weights=None):
