@@ -166,7 +166,8 @@ class Net(nn.Module):
         for i in range(batch_size):
             single_output = output[i]
             output_np = np.transpose(single_output.detach().cpu().numpy())
-            laplacian = lkm_laplacian(output_np)
+            laplacian_diag = lkm_laplacian(output_np)
+            laplacian = np.diag(laplacian_diag)
             laplacian_tensor = torch.from_numpy(laplacian).to(output.device)
             reg_loss = torch.sum(single_output * laplacian_tensor * single_output)
             total_reg_loss += reg_loss
