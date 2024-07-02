@@ -5,7 +5,7 @@ import numpy as np
 
 from function import calc_mean_std
 
-from pymatting import lkm_laplacian
+from pymatting import cf_laplacian
 
 decoder = nn.Sequential(
     nn.ReflectionPad2d((1, 1, 1, 1)),
@@ -166,8 +166,8 @@ class Net(nn.Module):
         for i in range(batch_size):
             single_output = output[i]
             output_np = single_output.detach().cpu().numpy().transpose()
-            _, laplacian_diag = lkm_laplacian(output_np)
-            laplacian = np.diag(laplacian_diag)
+            laplacian = cf_laplacian(output_np)
+            laplacian = laplacian.toarray()
             
             # Calculate the loss as transpose(output_np) * laplacian * output_np
             reg_loss = np.dot(np.dot(output_np.T, laplacian), output_np).sum()
@@ -193,7 +193,7 @@ class Net(nn.Module):
         loss_s = 0
         for i in range(4):
             loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
-            
+
         loss_m = self.calc_laplacian_loss(g_t)
         
         return loss_c, loss_s, loss_m
