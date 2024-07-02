@@ -57,34 +57,38 @@ class MattingLaplacian(torch.nn.Module):
         return L
 
     def forward(self, img):
-        """
-        Compute the Matting Laplacian loss for a given image.
-        
-        Args:
-        img (torch.Tensor): Input image tensor of shape (batch_size, channels, height, width)
-        
-        Returns:
-        torch.Tensor: Matting Laplacian loss
-        """
-        if img.dim() != 4:
-            raise ValueError("Expected 4D tensor as input")
-        
-        batch_size, channels, height, width = img.shape
-        loss = 0
-        
-        for b in range(batch_size):
-            img_np = img[b].permute(1, 2, 0).cpu().detach().numpy()  # Convert to numpy array
-            lap = self.compute_laplacian(img_np)
-            lap_tensor = torch.sparse_coo_tensor(
-                torch.LongTensor([lap.row, lap.col]),
-                torch.FloatTensor(lap.data),
-                torch.Size(lap.shape)
-            ).to(img.device)
+            """
+            Compute the Matting Laplacian loss for a given image.
             
-            img_flat = img[b].view(channels, -1)
-            loss += sum(torch.sum((img_flat[c] @ lap_tensor) * img_flat[c]) for c in range(channels))
-        
-        return loss / batch_size
+            Args:
+            img (torch.Tensor): Input image tensor of shape (batch_size, channels, height, width)
+            
+            Returns:
+            torch.Tensor: Matting Laplacian loss
+            """
+            if img.dim() != 4:
+                raise ValueError("Expected 4D tensor as input")
+            
+            batch_size, channels, height, width = img.shape
+            loss = 0
+            
+            for b in range(batch_size):
+                img_np = img[b].permute(1, 2, 0).cpu().numpy()  # Convert to numpy array
+                lap = self.compute_laplacian(img_np)
+                
+                # Convert scipy sparse matrix to torch sparse tensor more efficiently
+                coo = lap.tocoo()
+                indices = np.vstack((coo.row, coo.col))
+                indices = torch.LongTensor(indices).to(img.device)
+                values = torch.FloatTensor(coo.data).to(img.device)
+                shape = torch.Size(coo.shape)
+                
+                lap_tensor = torch.sparse_coo_tensor(indices, values, shape)
+                
+                img_flat = img[b].view(channels, -1)
+                loss += sum(torch.sum((img_flat[c] @ lap_tensor) * img_flat[c]) for c in range(channels))
+            
+            return loss / batch_size
 
 def compute_lap(path_img):
     """
