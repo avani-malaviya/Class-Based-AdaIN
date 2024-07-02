@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 import net
 from function import coral
 
-from matting import compute_lap
+from pymatting import lkm_laplacian
+
 
 def get_sem_map(img_path, mask_dir):
     # Process content mask
@@ -212,7 +213,10 @@ content_mask_tf = mask_transform(args.content_size, args.crop)
 style_mask_tf = mask_transform(args.style_size, args.crop)
 
 for content_path in content_paths:
-    L = compute_lap(content_path)
+    content_img = Image.open(content_path)
+    data = np.asarray(content_img)
+    L = lkm_laplacian(data) 
+    print(L)
     
     if do_interpolation:
         style = torch.stack([style_tf(Image.open(p)) for p in style_paths])
