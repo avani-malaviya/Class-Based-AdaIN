@@ -160,11 +160,19 @@ class Net(nn.Module):
                self.mse_loss(input_std, target_std)
     
     def calc_laplacian_loss(self, output):
-        output_np = output.detach().cpu().numpy()
-        laplacian = lkm_laplacian(output_np)
-        laplacian_tensor = torch.from_numpy(laplacian).to(output.device)        
-        reg_loss = torch.sum(output * laplacian_tensor * output)
-        return reg_loss
+        batch_size = output.size(0)
+        total_reg_loss = 0.0
+
+        for i in range(batch_size):
+            single_output = output[i]
+            output_np = single_output.detach().cpu().numpy()
+            laplacian = lkm_laplacian(output_np)
+            laplacian_tensor = torch.from_numpy(laplacian).to(output.device)
+            reg_loss = torch.sum(single_output * laplacian_tensor * single_output)
+            total_reg_loss += reg_loss
+
+        avg_reg_loss = total_reg_loss / batch_size
+        return avg_reg_loss
 
 
     def forward(self, content, style, content_sem, style_sem, alpha=1.0):
