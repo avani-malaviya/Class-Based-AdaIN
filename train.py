@@ -94,7 +94,7 @@ parser.add_argument('--max_iter', type=int, default=20000)
 parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--style_weight', type=float, default=1.0)
 parser.add_argument('--content_weight', type=float, default=10.0)
-parser.add_argument('--reg_weight', type=float, default=50.0)
+parser.add_argument('--reg_weight', type=float, default=0.1)
 parser.add_argument('--n_threads', type=int, default=16)
 parser.add_argument('--save_model_interval', type=int, default=1000)
 parser.add_argument('--content_mask_dir',type=str, required=True, 

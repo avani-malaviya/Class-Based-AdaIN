@@ -165,6 +165,7 @@ class Net(nn.Module):
 
         for i in range(batch_size):
             single_output = output[i]
+            single_output = single_output/255.0
             output_np = single_output.detach().cpu().numpy()
             output_np_transposed = output_np.transpose()
             H, W, C = output_np_transposed.shape
