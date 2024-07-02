@@ -73,7 +73,7 @@ class MattingLaplacian(torch.nn.Module):
         loss = 0
         
         for b in range(batch_size):
-            img_np = img[b].permute(1, 2, 0).cpu().numpy()  # Convert to numpy array
+            img_np = img[b].permute(1, 2, 0).cpu().detach().numpy()  # Convert to numpy array
             lap = self.compute_laplacian(img_np)
             lap_tensor = torch.sparse_coo_tensor(
                 torch.LongTensor([lap.row, lap.col]),
