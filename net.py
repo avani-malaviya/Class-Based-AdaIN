@@ -182,6 +182,7 @@ class Net(nn.Module):
         for i in range(4):
             loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
 
+        print(g_t.shape)
         loss_m = self.calc_laplacian_loss(g_t)
         
         return loss_c, loss_s, loss_m
