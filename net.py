@@ -4,7 +4,8 @@ import torch.nn.functional as F
 import numpy as np 
 
 from function import calc_mean_std
-from matting import MattingLaplacian
+
+from pymatting import lkm_laplacian
 
 decoder = nn.Sequential(
     nn.ReflectionPad2d((1, 1, 1, 1)),
@@ -107,8 +108,6 @@ class Net(nn.Module):
         self.mse_loss = nn.MSELoss()
         self.adain = adain
 
-        self.matting_laplacian = MattingLaplacian()
-
         # fix the encoder
         for name in ['enc_1', 'enc_2', 'enc_3', 'enc_4']:
             for param in getattr(self, name).parameters():
@@ -159,6 +158,13 @@ class Net(nn.Module):
         target_mean, target_std = calc_mean_std(target)
         return self.mse_loss(input_mean, target_mean) + \
                self.mse_loss(input_std, target_std)
+    
+    def calc_laplacian_loss(self, output):
+        output_np = output.detach().cpu().numpy()
+        laplacian = lkm_laplacian(output_np)
+        laplacian_tensor = torch.from_numpy(laplacian).to(output.device)        
+        reg_loss = torch.sum(output * laplacian_tensor * output)
+        return reg_loss
 
 
     def forward(self, content, style, content_sem, style_sem, alpha=1.0):
@@ -176,6 +182,6 @@ class Net(nn.Module):
         for i in range(4):
             loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
 
-        loss_m = self.matting_laplacian(g_t)
+        loss_m = self.calc_laplacian_loss(g_t)
         
         return loss_c, loss_s, loss_m
