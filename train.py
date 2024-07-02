@@ -94,6 +94,7 @@ parser.add_argument('--max_iter', type=int, default=20000)
 parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--style_weight', type=float, default=1.0)
 parser.add_argument('--content_weight', type=float, default=10.0)
+parser.add_argument('--reg_weight', type=float, default=0.5)
 parser.add_argument('--n_threads', type=int, default=16)
 parser.add_argument('--save_model_interval', type=int, default=1000)
 parser.add_argument('--content_mask_dir',type=str, required=True, 
@@ -126,6 +127,7 @@ wandb.init(project="Sim2Real_AdaIN", config={
     "batch_size": args.batch_size,
     "style_weight": args.style_weight,
     "content_weight": args.content_weight,
+    "regularization_weight": args.reg_weight,
     "n_threads": args.n_threads,
     "save_model_interval": args.save_model_interval
 })
@@ -166,16 +168,17 @@ for i in tqdm(range(args.max_iter)):
     style_images, style_mask = next(style_iter)
     style_images = style_images.to(device)
     style_mask = style_mask.to(device)
-    loss_c, loss_s = network(content_images, style_images, content_mask, style_mask)
+    loss_c, loss_s, loss_m = network(content_images, style_images, content_mask, style_mask)
     loss_c = args.content_weight * loss_c
     loss_s = args.style_weight * loss_s
-    loss = loss_c + loss_s
+    loss_m = args.reg_weight * loss_m
+    loss = loss_c + loss_s + loss_m
 
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
 
-    wandb.log({"loss_content": loss_c.item(), "loss_style": loss_s.item()}, step=i)
+    wandb.log({"loss_content": loss_c.item(), "loss_style": loss_s.item(), "loss_photorealism": loss_m.item()}, step=i)
 
     if (i + 1) % args.save_model_interval == 0 or (i + 1) == args.max_iter:
         state_dict = net.decoder.state_dict()

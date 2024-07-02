@@ -213,7 +213,7 @@ style_mask_tf = mask_transform(args.style_size, args.crop)
 
 for content_path in content_paths:
     L = compute_lap(content_path)
-    print(L)
+    
     if do_interpolation:
         style = torch.stack([style_tf(Image.open(p)) for p in style_paths])
         style_sem = torch.stack([get_sem_map(Path(p),args.style_mask_dir).to(device) for p in style_paths])
@@ -233,7 +233,7 @@ for content_path in content_paths:
         output_name = output_dir / '{:s}_interpolation{:s}'.format(
             content_path.stem, args.save_ext)
         save_image(output, str(output_name))
-        visualize_feature_maps(content_f, output_f, output_name)
+        #visualize_feature_maps(content_f, output_f, output_name)
 
     else:
         for style_path in style_paths:
@@ -261,4 +261,4 @@ for content_path in content_paths:
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
             save_image(output, str(output_name))
-            visualize_feature_maps(content_f, output_f, output_name)
+            #visualize_feature_maps(content_f, output_f, output_name)
