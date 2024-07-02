@@ -165,16 +165,18 @@ class Net(nn.Module):
 
         for i in range(batch_size):
             single_output = output[i]
-            output_np = np.transpose(single_output.detach().cpu().numpy())
+            output_np = single_output.detach().cpu().numpy().transpose()
             _, laplacian_diag = lkm_laplacian(output_np)
             laplacian = np.diag(laplacian_diag)
-            laplacian_tensor = torch.from_numpy(laplacian).to(output.device)
-            reg_loss = torch.sum(single_output * laplacian_tensor * single_output)
+            
+            # Calculate the loss as transpose(output_np) * laplacian * output_np
+            reg_loss = np.dot(np.dot(output_np.T, laplacian), output_np).sum()
             total_reg_loss += reg_loss
 
         avg_reg_loss = total_reg_loss / batch_size
-
-        return avg_reg_loss
+        avg_reg_loss_tensor = torch.tensor(avg_reg_loss, dtype=output.dtype, device=output.device)
+        
+        return avg_reg_loss_tensor
 
 
     def forward(self, content, style, content_sem, style_sem, alpha=1.0):
