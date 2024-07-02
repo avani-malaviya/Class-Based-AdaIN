@@ -5,7 +5,7 @@ import numpy as np
 
 from function import calc_mean_std
 
-from pymatting import cf_laplacian
+from pymatting import lkm_laplacian
 
 decoder = nn.Sequential(
     nn.ReflectionPad2d((1, 1, 1, 1)),
@@ -165,13 +165,25 @@ class Net(nn.Module):
 
         for i in range(batch_size):
             single_output = output[i]
-            output_np = single_output.detach().cpu().numpy().transpose()
-            laplacian = cf_laplacian(output_np)
-            laplacian = laplacian.toarray()
+            output_np = single_output.detach().cpu().numpy()
+            output_np_transposed = output_np.transpose()
+            H, W, C = output_np_transposed.shape
             
-            # Calculate the loss as transpose(output_np) * laplacian * output_np
-            reg_loss = np.dot(np.dot(output_np.T, laplacian), output_np).sum()
-            total_reg_loss += reg_loss
+            # Assuming lkm_laplacian returns a tuple where the second element is the laplacian diagonal
+            _, laplacian_diag = lkm_laplacian(output_np_transposed)
+            
+            # Convert laplacian diagonal to a torch tensor
+            laplacian_diag_tensor = torch.tensor(laplacian_diag, dtype=torch.float16, device=output.device)
+        
+            # Convert output_np_transposed to a torch tensor with float32 dtype
+            output_torch = torch.tensor(output_np_transposed, dtype=torch.float32, device=output.device) 
+            
+            # Flatten the output tensor
+            output_flat = output_torch.reshape(H*W, C)
+            
+            # Calculate the loss using diagonal tensor directly
+            reg_loss = torch.sum(laplacian_diag_tensor.unsqueeze(1) * torch.pow(output_flat, 2))
+            total_reg_loss += reg_loss.item()
 
         avg_reg_loss = total_reg_loss / batch_size
         avg_reg_loss_tensor = torch.tensor(avg_reg_loss, dtype=output.dtype, device=output.device)
