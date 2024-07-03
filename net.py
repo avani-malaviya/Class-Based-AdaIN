@@ -2,10 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np 
+import scipy.sparse
 
 from function import calc_mean_std
 
-from pymatting import lkm_laplacian
+from pymatting import cf_laplacian
 
 decoder = nn.Sequential(
     nn.ReflectionPad2d((1, 1, 1, 1)),
@@ -166,16 +167,23 @@ class Net(nn.Module):
         for i in range(batch_size):
             single_output = output[i]
             single_output = single_output/255.0
-            output_np = single_output.detach().cpu().numpy()
+            output_np = np.array(single_output.detach().cpu().numpy(),dtype=np.float64)
             output_np_transposed = output_np.transpose()
             H, W, C = output_np_transposed.shape
             
             # Assuming lkm_laplacian returns a tuple where the second element is the laplacian diagonal
-            _, laplacian_diag = lkm_laplacian(output_np_transposed)
+            laplacian_sm = cf_laplacian(output_np_transposed)
+
+            # Step 1: Convert to COO format
+            laplacian_coo = laplacian_sm.tocoo()
+
+            # Step 2: Create PyTorch sparse tensor
+            indices = torch.LongTensor([laplacian_coo.row, laplacian_coo.col])
+            values = torch.FloatTensor(laplacian_coo.data)
+            shape = laplacian_coo.shape
+
+            laplacian_torch = torch.sparse_coo_tensor(indices, values, shape).to(output.device)
             
-            # Convert laplacian diagonal to a torch tensor
-            laplacian_diag_tensor = torch.tensor(laplacian_diag, dtype=torch.float16, device=output.device)
-        
             # Convert output_np_transposed to a torch tensor with float32 dtype
             output_torch = torch.tensor(output_np_transposed, dtype=torch.float32, device=output.device) 
             
@@ -183,7 +191,8 @@ class Net(nn.Module):
             output_flat = output_torch.reshape(H*W, C)
             
             # Calculate the loss using diagonal tensor directly
-            reg_loss = torch.sum(laplacian_diag_tensor.unsqueeze(1) * torch.pow(output_flat, 2))
+            reg_loss = torch.sparse.mm(laplacian_torch,output_flat)
+            reg_loss = torch.sum(torch.mm(torch.transpose(output_flat,0,1),reg_loss))
             total_reg_loss += reg_loss.item()
 
         avg_reg_loss = total_reg_loss / batch_size
