@@ -178,8 +178,8 @@ class Net(nn.Module):
             laplacian_coo = laplacian_sm.tocoo()
 
             # Step 2: Create PyTorch sparse tensor
-            indices = torch.LongTensor([laplacian_coo.row, laplacian_coo.col])
-            values = torch.FloatTensor(laplacian_coo.data)
+            indices = torch.LongTensor(np.array([laplacian_coo.row, laplacian_coo.col]))
+            values = torch.FloatTensor(np.array(laplacian_coo.data))
             shape = laplacian_coo.shape
 
             laplacian_torch = torch.sparse_coo_tensor(indices, values, shape).to(output.device)
@@ -216,6 +216,6 @@ class Net(nn.Module):
         for i in range(4):
             loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
 
-        loss_m = self.calc_laplacian_loss(g_t)
+#        loss_m = self.calc_laplacian_loss(g_t)
         
-        return loss_c, loss_s, loss_m
+        return loss_c, loss_s #, loss_m
