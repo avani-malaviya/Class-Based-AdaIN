@@ -87,8 +87,12 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
         input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'bilinear')
         target_mask = F.interpolate((style_sem == class_id).float(), size = style_feat.shape[2:], mode = 'bilinear')
 
-        style_mean, style_std = calc_weighted_mean_std(style_feat,target_mask)
         content_mean, content_std = calc_weighted_mean_std(content_feat,input_mask)
+
+        if torch.any((style_sem == class_id).float() != 0):
+            style_mean, style_std = calc_weighted_mean_std(style_feat,target_mask)
+        else:
+            style_mean, style_std = calc_mean_std(style_feat)
 
         normalized_feat = (content_feat - content_mean.expand(
             size)) / content_std.expand(size)
