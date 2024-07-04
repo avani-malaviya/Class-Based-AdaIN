@@ -171,7 +171,7 @@ for i in tqdm(range(args.max_iter)):
     style_images, style_mask = next(style_iter)
     style_images = style_images.to(device)
     style_mask = style_mask.to(device)
-    loss_c, loss_s, loss_m = network(content_images, style_images, content_mask, style_mask)
+    loss_c, loss_s = network(content_images, style_images, content_mask, style_mask)
     loss_c = args.content_weight * loss_c
     loss_s = args.style_weight * loss_s
 #    loss_m = args.reg_weight * loss_m
