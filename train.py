@@ -181,7 +181,7 @@ for i in tqdm(range(args.max_iter)):
     loss.backward()
     optimizer.step()
 
-    wandb.log({"loss_content": loss_c.item(), "loss_style": loss_s.item(), "loss_photorealism": loss_m.item()}, step=i)
+    wandb.log({"loss_content": loss_c.item(), "loss_style": loss_s.item()}, step=i)
 
     if (i + 1) % args.save_model_interval == 0 or (i + 1) == args.max_iter:
         state_dict = net.decoder.state_dict()
