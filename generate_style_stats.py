@@ -9,6 +9,8 @@ import torch.nn.functional as F
 import net
 from function import calc_weighted_mean_std
 import numpy as np
+import pickle
+
 
 def mask_transform(size, crop):
     transform_list = []
@@ -60,7 +62,6 @@ style_tf = test_transform(args.style_size, args.crop)
 style_dir = Path(args.style_dir)
 style_paths = list(style_dir.glob('*'))
 
-
 style_means = {}
 style_stds = {}
 
@@ -76,24 +77,50 @@ for style_path in style_paths:
     style_sem = style_sem.to(device).unsqueeze(0)
     style_f = vgg(style)
     
-    style_means[style_path] = np.zeros((34, 512))
-    style_stds[style_path] = np.zeros((34, 512))
+    style_means[style_path] = {}
+    style_stds[style_path] = {}
     
     for class_id in torch.unique(style_sem):
-        class_id_int = int(class_id.item())  # Convert to integer
         style_mask = F.interpolate((style_sem == class_id).float(), size=style_f.shape[2:], mode='nearest')
         style_mean, style_std = calc_weighted_mean_std(style_f, style_mask)
-        
-        style_means[style_path][class_id_int] = style_mean.squeeze(-1).squeeze(-1).cpu().detach().numpy()
-        style_stds[style_path][class_id_int] = style_std.squeeze(-1).squeeze(-1).cpu().detach().numpy()
 
-# Calculate average means and stds
-style_mean_avg = np.mean(list(style_means.values()), axis=0)
-style_std_avg = np.mean(list(style_stds.values()), axis=0)
+        class_id_float = class_id.item()
+        style_means[style_path][class_id_float] = style_mean.squeeze().cpu().detach().numpy()
+        style_stds[style_path][class_id_float] = style_std.squeeze().cpu().detach().numpy()
 
-print(style_mean_avg.shape)
-print(style_std_avg.shape)
 
-# Save the arrays
-np.save('style_means.npy', style_means)
-np.save('style_stds.npy', style_stds)
+accumulated_means = {}
+
+for style_path, class_means in style_means.items():
+    nonzero_count = 0
+    for class_id, mean_value in class_means.items():
+        if class_id not in accumulated_means:
+            accumulated_means[class_id] = 0.0*np.ones(512)
+        accumulated_means[class_id] += mean_value    
+        if mean_value.any() != 0: 
+            nonzero_count+=1
+accumulated_means[class_id]/=nonzero_count
+
+with open("means.txt", "wb") as myFile:
+    pickle.dump(accumulated_means, myFile)
+
+accumulated_stds = {}
+
+for style_path, class_stds in style_stds.items():
+    nonzero_count = 0
+    for class_id, std_value in class_stds.items():
+        if class_id not in accumulated_stds:
+            accumulated_stds[class_id] = 0.0
+        accumulated_stds[class_id] += std_value    
+        if std_value.any() != 0: 
+            nonzero_count+=1
+accumulated_stds[class_id]/=nonzero_count
+
+with open("stds.txt", "wb") as myFile:
+    pickle.dump(accumulated_stds, myFile)
+
+
+
+    
+
+

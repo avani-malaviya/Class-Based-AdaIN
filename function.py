@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
+import pickle
 
 def calc_mean_std(feat, eps=1e-5):
     # eps is a small value added to the variance to avoid divide-by-zero.
@@ -96,6 +97,8 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
         else:
             style_mean, style_std = calc_mean_std(style_feat)
 
+        print(style_mean.shape)
+
         normalized_feat = (content_feat - content_mean.expand(
             size)) / content_std.expand(size)
         normalized_feat = normalized_feat*input_mask
@@ -110,26 +113,33 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feat, cont
     
     adaIN_feat = torch.zeros(size).to(content_feat.device)
 
-    style_means = np.load('style_means.npy', allow_pickle=True).item()
-    style_stds = np.load('style_stds.npy', allow_pickle=True).item()
-
-    style_mean_avg = np.mean(list(style_means.values()), axis=0)
-    style_std_avg = np.mean(list(style_stds.values()), axis=0)
+    with open("means.txt", "rb") as myFile:
+        means = pickle.load(myFile)
+    with open("means.txt", "rb") as myFile:
+        stds = pickle.load(myFile)
 
     for class_id in torch.unique(content_sem):
+        class_id_float = class_id.item()
 
-        input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'nearest')
-        content_mean, content_std = calc_weighted_mean_std(content_feat,input_mask)
+        try:
+            style_std = torch.from_numpy(stds[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        except KeyError:
+            style_std = torch.zeros(size)
+        try:
+            style_mean = torch.from_numpy(means[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        except KeyError:
+            style_mean = torch.zeros(size)
+        
+        # Calculate content mean and standard deviation for the current class
+        input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='nearest')
+        content_mean, content_std = calc_weighted_mean_std(content_feat, input_mask)
 
-        style_mean = torch.from_numpy(style_mean_avg[class_id]).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
-        style_std = torch.from_numpy(style_std_avg[class_id]).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
-
-        normalized_feat = (content_feat - content_mean.expand(
-            size)) / content_std.expand(size)
-        normalized_feat = normalized_feat*input_mask
+        # Apply adaptive instance normalization
+        normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
+        normalized_feat = normalized_feat * input_mask
         adaIN_feat += normalized_feat * style_std.expand(size) + style_mean.expand(size)*input_mask
 
-
+        return adaIN_feat
 
 
 def _calc_feat_flatten_mean_std(feat):
