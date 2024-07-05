@@ -121,6 +121,15 @@ for style_path, class_stds in style_stds.items():
 with open("stds.txt", "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
 
+with open("means.txt", "rb") as myFile:
+    means = pickle.load(myFile)
+with open("means.txt", "rb") as myFile:
+    stds = pickle.load(myFile)
+
+print(means)
+print(stds)
+
+
 
 
     

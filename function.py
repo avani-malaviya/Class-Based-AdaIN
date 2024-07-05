@@ -115,19 +115,23 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feat, cont
 
     with open("means.txt", "rb") as myFile:
         means = pickle.load(myFile)
-    with open("means.txt", "rb") as myFile:
+    with open("stds.txt", "rb") as myFile:
         stds = pickle.load(myFile)
 
     for class_id in torch.unique(content_sem):
         class_id_float = class_id.item()
 
         try:
-            style_std = torch.from_numpy(stds[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            print('worked')
+            style_std = torch.from_numpy(stds[class_id]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         except KeyError:
+            print('did not')
             style_std = torch.zeros(size)
         try:
-            style_mean = torch.from_numpy(means[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            print('worked')
+            style_mean = torch.from_numpy(means[class_id]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         except KeyError:
+            print('did not')
             style_mean = torch.zeros(size)
         
         # Calculate content mean and standard deviation for the current class
