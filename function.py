@@ -119,19 +119,17 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feat, cont
         stds = pickle.load(myFile)
 
     for class_id in torch.unique(content_sem):
+
         class_id_float = class_id.item()
+        print(class_id_float)
 
         try:
-            print('worked')
-            style_std = torch.from_numpy(stds[class_id]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            style_std = torch.from_numpy(stds[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         except KeyError:
-            print('did not')
             style_std = torch.zeros(size)
         try:
-            print('worked')
-            style_mean = torch.from_numpy(means[class_id]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            style_mean = torch.from_numpy(means[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         except KeyError:
-            print('did not')
             style_mean = torch.zeros(size)
         
         # Calculate content mean and standard deviation for the current class
@@ -141,9 +139,9 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feat, cont
         # Apply adaptive instance normalization
         normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
         normalized_feat = normalized_feat * input_mask
-        adaIN_feat += normalized_feat * style_std.expand(size) + style_mean.expand(size)*input_mask
+        adaIN_feat += normalized_feat * style_std + style_mean*input_mask
 
-        return adaIN_feat
+    return adaIN_feat
 
 
 def _calc_feat_flatten_mean_std(feat):
