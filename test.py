@@ -124,6 +124,7 @@ parser.add_argument('--style_dir', type=str,
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
 parser.add_argument('--with_segmentation', type=str, required=True)
+parser.add_argument('--precomputed', type=str, required=True)
 
 # Additional options
 parser.add_argument('--content_size', type=int, default=512,
@@ -155,7 +156,9 @@ parser.add_argument('--style_mask_dir',type=str, required=True,
 
 args = parser.parse_args()
 
-if (args.with_segmentation=="True"):
+if (args.precomputed=="True"):
+    from function import adaptive_instance_normalization_precalculated as adain
+elif (args.with_segmentation=="True"):
     from function import adaptive_instance_normalization_by_segmentation as adain
 else:
     from function import adaptive_instance_normalization as adain

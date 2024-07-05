@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import numpy as np
 
 def calc_mean_std(feat, eps=1e-5):
     # eps is a small value added to the variance to avoid divide-by-zero.
@@ -101,6 +102,32 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
         adaIN_feat += normalized_feat * style_std.expand(size) + style_mean.expand(size)*input_mask
 
     return adaIN_feat
+
+
+def adaptive_instance_normalization_precalculated(content_feat, style_feat, content_sem, style_sem):
+    assert (content_feat.size()[:2] == style_feat.size()[:2])
+    size = content_feat.size()
+    
+    adaIN_feat = torch.zeros(size).to(content_feat.device)
+
+    style_means = np.load('style_means.npy', allow_pickle=True).item()
+    style_stds = np.load('style_stds.npy', allow_pickle=True).item()
+
+    style_mean_avg = np.mean(list(style_means.values()), axis=0)
+    style_std_avg = np.mean(list(style_stds.values()), axis=0)
+
+    for class_id in torch.unique(content_sem):
+
+        input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'nearest')
+        content_mean, content_std = calc_weighted_mean_std(content_feat,input_mask)
+
+        style_mean = torch.from_numpy(style_mean_avg[class_id]).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
+        style_std = torch.from_numpy(style_std_avg[class_id]).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
+
+        normalized_feat = (content_feat - content_mean.expand(
+            size)) / content_std.expand(size)
+        normalized_feat = normalized_feat*input_mask
+        adaIN_feat += normalized_feat * style_std.expand(size) + style_mean.expand(size)*input_mask
 
 
 
