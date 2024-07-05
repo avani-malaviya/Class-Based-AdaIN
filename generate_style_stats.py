@@ -92,14 +92,15 @@ for style_path in style_paths:
 accumulated_means = {}
 
 for style_path, class_means in style_means.items():
-    nonzero_count = 0
     for class_id, mean_value in class_means.items():
         if class_id not in accumulated_means:
-            accumulated_means[class_id] = 0.0*np.ones(512)
+            accumulated_means[class_id] = 0.0 * np.ones(512)
         accumulated_means[class_id] += mean_value    
-        if mean_value.any() != 0: 
-            nonzero_count+=1
-accumulated_means[class_id]/=nonzero_count
+
+    nonzero_count = sum(1 for mean_value in class_means.values() if mean_value.any() != 0)
+    if nonzero_count > 0:
+        for class_id in class_means.keys():
+            accumulated_means[class_id] /= nonzero_count
 
 with open("means.txt", "wb") as myFile:
     pickle.dump(accumulated_means, myFile)
@@ -107,14 +108,15 @@ with open("means.txt", "wb") as myFile:
 accumulated_stds = {}
 
 for style_path, class_stds in style_stds.items():
-    nonzero_count = 0
     for class_id, std_value in class_stds.items():
         if class_id not in accumulated_stds:
-            accumulated_stds[class_id] = 0.0
+            accumulated_stds[class_id] = 0.0 * np.ones(512)
         accumulated_stds[class_id] += std_value    
-        if std_value.any() != 0: 
-            nonzero_count+=1
-accumulated_stds[class_id]/=nonzero_count
+
+    nonzero_count = sum(1 for std_value in class_stds.values() if std_value.any() != 0)
+    if nonzero_count > 0:
+        for class_id in class_stds.keys():
+            accumulated_stds[class_id] /= nonzero_count
 
 with open("stds.txt", "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
