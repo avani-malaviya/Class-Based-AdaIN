@@ -77,6 +77,7 @@ def adaptive_instance_normalization(content_feat, style_feat,content_sem,style_s
         size)) / content_std.expand(size)
     return normalized_feat * style_std.expand(size) + style_mean.expand(size)
 
+
 def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, content_sem, style_sem):
     assert (content_feat.size()[:2] == style_feat.size()[:2])
     size = content_feat.size()

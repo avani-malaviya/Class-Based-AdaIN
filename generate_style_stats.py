@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import net
 from function import calc_weighted_mean_std
-import json
+import numpy as np
 
 def mask_transform(size, crop):
     transform_list = []
@@ -60,7 +60,9 @@ style_tf = test_transform(args.style_size, args.crop)
 style_dir = Path(args.style_dir)
 style_paths = list(style_dir.glob('*'))
 
-style_statistics = {}
+
+style_means = {}
+style_stds = {}
 
 for style_path in style_paths:
     style = style_tf(Image.open(str(style_path)))
@@ -74,21 +76,24 @@ for style_path in style_paths:
     style_sem = style_sem.to(device).unsqueeze(0)
     style_f = vgg(style)
     
-    image_stats = {}
+    style_means[style_path] = np.zeros((34, 512))
+    style_stds[style_path] = np.zeros((34, 512))
     
     for class_id in torch.unique(style_sem):
+        class_id_int = int(class_id.item())  # Convert to integer
         style_mask = F.interpolate((style_sem == class_id).float(), size=style_f.shape[2:], mode='nearest')
         style_mean, style_std = calc_weighted_mean_std(style_f, style_mask)
         
-        image_stats[int(class_id.item())] = {
-            "mean": style_mean.cpu().numpy().tolist(),
-            "std": style_std.cpu().numpy().tolist()
-        }
-    
-    style_statistics[style_path.name] = image_stats
+        style_means[style_path][class_id_int] = style_mean.squeeze(-1).squeeze(-1).cpu().detach().numpy()
+        style_stds[style_path][class_id_int] = style_std.squeeze(-1).squeeze(-1).cpu().detach().numpy()
 
-# Save the statistics to a JSON file
-with open(args.output_file, 'w') as f:
-    json.dump(style_statistics, f, indent=2)
+# Calculate average means and stds
+style_mean_avg = np.mean(list(style_means.values()), axis=0)
+style_std_avg = np.mean(list(style_stds.values()), axis=0)
 
-print(f"Style statistics saved to {args.output_file}")
+print(style_mean_avg.shape)
+print(style_std_avg.shape)
+
+# Save the arrays
+np.save('style_means.npy', style_means)
+np.save('style_stds.npy', style_stds)
