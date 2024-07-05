@@ -85,7 +85,7 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
 
     for class_id in torch.unique(content_sem):
         input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'nearest')
-        target_mask = F.interpolate((style_sem == class_id).float(), size = style_feat.shape[2:], mode = 'bilinear')
+        target_mask = F.interpolate((style_sem == class_id).float(), size = style_feat.shape[2:], mode = 'nearest')
 
         content_mean, content_std = calc_weighted_mean_std(content_feat,input_mask)
 
