@@ -26,7 +26,7 @@ stds_data = prepare_data(style_stds)
 # 3. Perform clustering for each class
 n_clusters = 5  # You can adjust this number
 
-def cluster_data(data, n_clusters):
+def cluster_data(data, max_clusters):
     clustered_data = {}
     for class_id, features in data.items():
         # Convert list of lists to numpy array
@@ -41,6 +41,8 @@ def cluster_data(data, n_clusters):
         
         # Convert similarity to distance
         distance_matrix = 1 - similarity_matrix
+
+        n_clusters = min(max_clusters, X_scaled.shape[0] - 1)
         
         # Perform K-means clustering with precomputed distances
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10, max_iter=300)
