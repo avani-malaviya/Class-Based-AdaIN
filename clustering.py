@@ -9,6 +9,9 @@ from PIL import Image
 import os
 import re
 from pathlib import Path
+import torch
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load the data
 with open('style_means.json', 'r') as f:
@@ -26,7 +29,7 @@ def mask_transform(size, crop):
     transform = transforms.Compose(transform_list)
     return transform
 
-content_mask_tf = mask_transform(512, None)
+content_mask_tf = mask_transform(0, None)
 
 def get_sem_map(img_path, mask_dir):
     # Process content mask
@@ -129,9 +132,14 @@ def visualize_clusters(clustered_data, class_id, n_clusters, output_dir):
             axes = axes.reshape(1, -1)
 
         for i, path in enumerate(paths):
-            style_sem = get_sem_map(path, 'input/style/cityscapes/labels/')
-            mask = (style_sem == class_id).float()
-            img = Image.open(path)*mask
+            style_sem = get_sem_map(Path(path), 'input/style/cityscapes/labels/')
+            style_sem = style_sem.squeeze().numpy()
+            binary_mask = np.array(style_sem == float(class_id), dtype=np.uint8) 
+            img = Image.open(path)
+            binary_mask = np.repeat(binary_mask[:, :, np.newaxis], 3, axis=2)  # Adjust the mask for 3 channels
+            img_array = np.array(img)
+            masked_img_array = img_array * binary_mask
+            img = Image.fromarray(masked_img_array)
             ax = axes[i // grid_size, i % grid_size]
             ax.imshow(img)
             ax.axis('off')

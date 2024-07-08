@@ -129,12 +129,13 @@ for style_path, class_stds in style_stds.items():
     for class_id, std_value in class_stds.items():
         if class_id not in accumulated_stds:
             accumulated_stds[class_id] = 0.0 * np.ones(512)
-        accumulated_stds[class_id] += std_value    
+        accumulated_stds[class_id] += std_value**2    
 
     nonzero_count = sum(1 for std_value in class_stds.values() if std_value.any() != 0)
     if nonzero_count > 0:
         for class_id in class_stds.keys():
             accumulated_stds[class_id] /= nonzero_count
+            accumulated_stds[class_id] = np.sqrt(accumulated_stds[class_id])
 
 with open("mean_stds.txt", "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
