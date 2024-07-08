@@ -118,7 +118,7 @@ def process_styles(style_paths, args, vgg, device):
             all_style_masks[class_id].append(style_mask)
 
     # Stack all style features
-    stacked_style_f = torch.cat(all_style_f, dim=0)
+    stacked_style_f = torch.cat(all_style_f, dim=0).to(device)
 
     # Create stacked masks for all classes, filling with zeros where necessary
     stacked_style_masks = {}
@@ -274,6 +274,7 @@ for content_path in content_paths:
         output_name = output_dir / '{:s}_stylized{:s}'.format(
             content_path.stem, args.save_ext)
         save_image(output, str(output_name))
+        
     
     elif do_interpolation:
         style = torch.stack([style_tf(Image.open(p)) for p in style_paths])

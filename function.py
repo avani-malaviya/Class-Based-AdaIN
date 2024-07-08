@@ -133,39 +133,6 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
     return adaIN_feat
 
 
-# def adaptive_instance_normalization_precomputed(content_feat, content_sem, style_path):
-#     size = content_feat.size()
-    
-#     adaIN_feat = torch.zeros(size).to(content_feat.device)
-
-#     for class_id in torch.unique(content_sem):
-#         input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'nearest')
-#         content_mean, content_std = calc_weighted_mean_std(content_feat,input_mask)
-
-#         with open('style_means.json', 'r') as f:
-#             style_means = json.load(f)
-
-#         with open('style_stds.json', 'r') as f:
-#             style_stds = json.load(f)
-
-#         try:
-#             style_mean_np = np.array(style_means[str(style_path)][str(class_id.item())])
-#             style_std_np = np.array(style_stds[str(style_path)][str(class_id.item())])
-#         except KeyError:
-#             style_mean_np = np.zeros((1,512))
-#             style_std_np = np.zeros((1,512))
-
-#         style_mean = torch.from_numpy(style_mean_np).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
-#         style_std = torch.from_numpy(style_std_np).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
-
-#         normalized_feat = (content_feat - content_mean.expand(
-#             size)) / content_std.expand(size)
-#         normalized_feat = normalized_feat*input_mask
-#         adaIN_feat += normalized_feat * style_std.expand(size) + style_mean.expand(size)*input_mask
-
-#     return adaIN_feat
-
-
 def adaptive_instance_normalization_precalculated(content_feat, style_feats, content_sem, style_sems):
     size = content_feat.size()
     
