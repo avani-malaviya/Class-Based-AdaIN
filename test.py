@@ -141,9 +141,7 @@ def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, 
     if stacked_style:
         _, C, H, W = content_f.size()
         feat = torch.FloatTensor(1, C, H, W).zero_().to(device)
-        base_feat = adain(content_f, style_f,content_sem,style_sem)
-        for i, w in enumerate(interpolation_weights):
-            feat = feat + w * base_feat[i:i + 1]
+        feat = adain(content_f, style.unsqueeze(1),content_sem,style_sem)
         content_f = content_f[0:1]
     else:
         style_f = vgg(style)
@@ -273,8 +271,8 @@ for content_path in content_paths:
             output_f = vgg(output)
         output = output.cpu()
 
-        output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
-            content_path.stem, style_path.stem, args.save_ext)
+        output_name = output_dir / '{:s}_stylized{:s}'.format(
+            content_path.stem, args.save_ext)
         save_image(output, str(output_name))
     
     elif do_interpolation:
