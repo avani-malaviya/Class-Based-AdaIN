@@ -121,13 +121,11 @@ def visualize_clusters(clustered_data, class_id, n_clusters, output_dir):
         plt.savefig(os.path.join(output_dir, f'class_{class_id}_cluster_{cluster}.png'))
         plt.close()
 
-        
-# Prepare style paths
-style_paths = list(style_means.keys())
+
 
 # Visualize clusters for means (you can do the same for stds if needed)
 output_dir = 'output/sim2real/cluster_visualizations'
 for class_id in clustered_means:
-    visualize_clusters(clustered_means, style_paths, class_id, n_clusters, output_dir)
+    visualize_clusters(clustered_means, class_id, n_clusters, output_dir)
 
 print(f"Visualizations saved in {output_dir}")
