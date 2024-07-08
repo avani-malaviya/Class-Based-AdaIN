@@ -7,31 +7,34 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import os
 
-# 1. Load the data (same as before)
+# Load the data
 with open('style_means.json', 'r') as f:
     style_means = json.load(f)
 with open('style_stds.json', 'r') as f:
     style_stds = json.load(f)
 
-# 2. Prepare the data for clustering
-def prepare_data(data_dict):
-    prepared_data = {}
-    for style_path, class_data in data_dict.items():
-        for class_id, features in class_data.items():
-            if class_id not in prepared_data:
-                prepared_data[class_id] = []
-            prepared_data[class_id].append(features)
-    return prepared_data
+# Prepare the data for clustering
+def prepare_combined_data(means_dict, stds_dict):
+    combined_data = {}
+    for style_path in means_dict:
+        for class_id in means_dict[style_path]:
+            if class_id not in combined_data:
+                combined_data[class_id] = []
+            # Concatenate mean and std features
+            combined_features = means_dict[style_path][class_id] + stds_dict[style_path][class_id]
+            combined_data[class_id].append((style_path, combined_features))
+    return combined_data
 
-means_data = prepare_data(style_means)
-stds_data = prepare_data(style_stds)
+combined_data = prepare_combined_data(style_means, style_stds)
 
-# 3. Perform clustering for each class
+# Perform clustering for each class
 n_clusters = 5  # You can adjust this number
 
 def cluster_data(data, max_clusters):
     clustered_data = {}
-    for class_id, features in data.items():
+    for class_id, features_list in data.items():
+        style_paths, features = zip(*features_list)
+        
         # Convert list of lists to numpy array
         X = np.array(features)
         
@@ -44,7 +47,7 @@ def cluster_data(data, max_clusters):
         
         # Convert similarity to distance
         distance_matrix = 1 - similarity_matrix
-
+        
         n_clusters = min(max_clusters, X_scaled.shape[0])
         
         # Perform K-means clustering with precomputed distances
@@ -53,25 +56,14 @@ def cluster_data(data, max_clusters):
         
         clustered_data[class_id] = {
             'cluster_labels': cluster_labels,
-            'cluster_centers': kmeans.cluster_centers_
+            'cluster_centers': kmeans.cluster_centers_,
+            'style_paths': style_paths
         }
     return clustered_data
 
-clustered_means = cluster_data(means_data, n_clusters)
-clustered_stds = cluster_data(stds_data, n_clusters)
+clustered_combined = cluster_data(combined_data, n_clusters)
 
-# 4. Analyze the results (same as before)
-for class_id in clustered_means:
-    print(f"Class {class_id}:")
-    print(f"  Number of samples: {len(clustered_means[class_id]['cluster_labels'])}")
-    print("  Cluster sizes:")
-    for i in range(n_clusters):
-        cluster_size = np.sum(clustered_means[class_id]['cluster_labels'] == i)
-        print(f"    Cluster {i}: {cluster_size}")
-    print()
-
-
-
+# Visualization function (same as before)
 def visualize_clusters(clustered_data, class_id, n_clusters, output_dir):
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
@@ -121,11 +113,19 @@ def visualize_clusters(clustered_data, class_id, n_clusters, output_dir):
         plt.savefig(os.path.join(output_dir, f'class_{class_id}_cluster_{cluster}.png'))
         plt.close()
 
-
-
-# Visualize clusters for means (you can do the same for stds if needed)
+# Visualize combined clusters
 output_dir = 'output/sim2real/cluster_visualizations'
-for class_id in clustered_means:
-    visualize_clusters(clustered_means, class_id, n_clusters, output_dir)
+for class_id in clustered_combined:
+    visualize_clusters(clustered_combined, class_id, n_clusters, output_dir)
 
 print(f"Visualizations saved in {output_dir}")
+
+# Analyze the results
+for class_id in clustered_combined:
+    print(f"Class {class_id}:")
+    print(f"  Number of samples: {len(clustered_combined[class_id]['cluster_labels'])}")
+    print("  Cluster sizes:")
+    for i in range(n_clusters):
+        cluster_size = np.sum(clustered_combined[class_id]['cluster_labels'] == i)
+        print(f"    Cluster {i}: {cluster_size}")
+    print()
