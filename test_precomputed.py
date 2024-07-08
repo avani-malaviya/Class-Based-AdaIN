@@ -91,20 +91,20 @@ def visualize_feature_maps(content_f, output_f, output_name):
 
 
 
-def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
+def style_transfer(adain, vgg, decoder, content, content_sem, style_path, alpha=1.0,
                    interpolation_weights=None):
     assert (0.0 <= alpha <= 1.0)
     content_f = vgg(content)
-    style_f = vgg(style)
+
     if interpolation_weights:
         _, C, H, W = content_f.size()
         feat = torch.FloatTensor(1, C, H, W).zero_().to(device)
-        base_feat = adain(content_f, style_f,content_sem,style_sem)
+        base_feat = adain(content_f,content_sem,style_path)
         for i, w in enumerate(interpolation_weights):
             feat = feat + w * base_feat[i:i + 1]
         content_f = content_f[0:1]
     else:
-        feat = adain(content_f, style_f,content_sem,style_sem)
+        feat = adain(content_f, content_sem, style_path)
     feat = feat * alpha + content_f * (1 - alpha)
     return decoder(feat), content_f
 
@@ -157,10 +157,7 @@ parser.add_argument('--style_mask_dir',type=str, required=True,
 args = parser.parse_args()
 
 
-if (args.with_segmentation=="True"):
-    from function import adaptive_instance_normalization_by_segmentation as adain
-else:
-    from function import adaptive_instance_normalization as adain
+from function import adaptive_instance_normalization_precomputed as adain
 
 do_interpolation = False
 
@@ -226,7 +223,7 @@ for content_path in content_paths:
         style = style.to(device)
         content = content.to(device)
         with torch.no_grad():
-            output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
+            output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style_path,
                                     args.alpha, interpolation_weights)
             output_f = vgg(output)
         output = output.cpu()
@@ -238,22 +235,13 @@ for content_path in content_paths:
     else:
         for style_path in style_paths:
             content = content_tf(Image.open(str(content_path)))
-            style = style_tf(Image.open(str(style_path)))
-            
-            content_sem = get_sem_map(content_path,args.content_mask_dir)
-            style_sem = get_sem_map(style_path,args.style_mask_dir)
-            
-            if args.preserve_color:
-                style = coral(style, content)
-            
-            style = style.to(device).unsqueeze(0)
+            content_sem = get_sem_map(content_path,args.content_mask_dir)            
             content = content.to(device).unsqueeze(0)
 
             content_sem = content_sem.to(device).unsqueeze(0)
-            style_sem = style_sem.to(device).unsqueeze(0)
 
             with torch.no_grad():
-                output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
+                output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style_path,
                                         args.alpha)
                 output_f = vgg(output)
             output = output.cpu()
