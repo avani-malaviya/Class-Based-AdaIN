@@ -159,6 +159,8 @@ args = parser.parse_args()
 
 if (args.with_segmentation=="True"):
     from function import adaptive_instance_normalization_by_segmentation as adain
+elif (args.with_segmentation=="precomputed"):
+    from function import adaptive_instance_normalization_precalculated as adain
 else:
     from function import adaptive_instance_normalization as adain
 
