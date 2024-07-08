@@ -10,6 +10,7 @@ import net
 from function import calc_weighted_mean_std
 import numpy as np
 import pickle
+import json
 
 
 def mask_transform(size, crop):
@@ -88,6 +89,19 @@ for style_path in style_paths:
         style_means[style_path][class_id_float] = style_mean.squeeze().cpu().detach().numpy()
         style_stds[style_path][class_id_float] = style_std.squeeze().cpu().detach().numpy()
 
+# Convert numpy arrays to lists for JSON serialization
+for style_path in style_means:
+    for class_id in style_means[style_path]:
+        style_means[style_path][class_id] = style_means[style_path][class_id].tolist()
+        style_stds[style_path][class_id] = style_stds[style_path][class_id].tolist()
+
+# Save the dictionaries as JSON files
+with open('style_means.json', 'w') as f:
+    json.dump(style_means, f)
+
+with open('style_stds.json', 'w') as f:
+    json.dump(style_stds, f)
+
 
 accumulated_means = {}
 
@@ -102,7 +116,7 @@ for style_path, class_means in style_means.items():
         for class_id in class_means.keys():
             accumulated_means[class_id] /= nonzero_count
 
-with open("means.txt", "wb") as myFile:
+with open("mean_means.txt", "wb") as myFile:
     pickle.dump(accumulated_means, myFile)
 
 accumulated_stds = {}
@@ -118,16 +132,9 @@ for style_path, class_stds in style_stds.items():
         for class_id in class_stds.keys():
             accumulated_stds[class_id] /= nonzero_count
 
-with open("stds.txt", "wb") as myFile:
+with open("mean_stds.txt", "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
 
-with open("means.txt", "rb") as myFile:
-    means = pickle.load(myFile)
-with open("means.txt", "rb") as myFile:
-    stds = pickle.load(myFile)
-
-print(means)
-print(stds)
 
 
 

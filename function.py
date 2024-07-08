@@ -113,9 +113,9 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feat, cont
     
     adaIN_feat = torch.zeros(size).to(content_feat.device)
 
-    with open("means.txt", "rb") as myFile:
+    with open("mean_means.txt", "rb") as myFile:
         means = pickle.load(myFile)
-    with open("stds.txt", "rb") as myFile:
+    with open("mean_stds.txt", "rb") as myFile:
         stds = pickle.load(myFile)
 
     for class_id in torch.unique(content_sem):
