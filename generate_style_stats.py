@@ -62,83 +62,59 @@ style_tf = test_transform(args.style_size, args.crop)
 style_dir = Path(args.style_dir)
 style_paths = list(style_dir.glob('*'))
 
-style_means = {}
-style_stds = {}
 
-for style_path in style_paths:
-    style = style_tf(Image.open(str(style_path)))
-    style_sem = get_sem_map(style_path, args.style_mask_dir)
-    
-    if style_sem is None:
-        print(f"No segmentation mask found for {style_path}. Skipping.")
-        continue
-    
-    style = style.to(device).unsqueeze(0)
-    style_sem = style_sem.to(device).unsqueeze(0)
-    style_f = vgg(style)
-    
-    style_means[style_path] = {}
-    style_stds[style_path] = {}
-    
-    for class_id in torch.unique(style_sem):
-        style_mask = F.interpolate((style_sem == class_id).float(), size=style_f.shape[2:], mode='nearest')
-        style_mean, style_std = calc_weighted_mean_std(style_f, style_mask)
+def process_styles(style_paths, args, vgg, device):
+    all_style_f = []
+    all_style_masks = {}
+    all_classes = set()
 
-        class_id_float = class_id.item()
-        style_means[style_path][class_id_float] = style_mean.squeeze().cpu().detach().numpy()
-        style_stds[style_path][class_id_float] = style_std.squeeze().cpu().detach().numpy()
+    for style_path in style_paths:
+        style = style_tf(Image.open(str(style_path)))
+        style_sem = get_sem_map(style_path, args.style_mask_dir)
+        
+        if style_sem is None:
+            print(f"No segmentation mask found for {style_path}. Skipping.")
+            continue
+        
+        style = style.to(device).unsqueeze(0)
+        style_sem = style_sem.to(device).unsqueeze(0)
+        style_f = vgg(style)
+        all_style_f.append(style_f)
+        
+        classes = torch.unique(style_sem)
+        all_classes.update(classes.cpu().numpy())
+        
+        for class_id in classes:
+            if class_id not in all_style_masks:
+                all_style_masks[class_id] = []
+            style_mask = F.interpolate((style_sem == class_id).float(), size=style_f.shape[2:], mode='nearest')
+            all_style_masks[class_id].append(style_mask)
 
-serializable_style_means = {}
-serializable_style_stds = {}
+    # Stack all style features
+    stacked_style_f = torch.cat(all_style_f, dim=0)
 
-for style_path in style_means:
-    str_style_path = str(style_path)  # Convert PosixPath to string
-    serializable_style_means[str_style_path] = {}
-    serializable_style_stds[str_style_path] = {}
-    for class_id in style_means[style_path]:
-        serializable_style_means[str_style_path][class_id] = style_means[style_path][class_id].tolist()
-        serializable_style_stds[str_style_path][class_id] = style_stds[style_path][class_id].tolist()
+    # Create stacked masks for all classes, filling with zeros where necessary
+    stacked_style_masks = {}
+    for class_id in all_classes:
+        if class_id in all_style_masks:
+            masks = all_style_masks[class_id]
+            while len(masks) < len(style_paths):
+                masks.append(torch.zeros_like(masks[0]))
+            stacked_style_masks[class_id] = torch.cat(masks, dim=0)
+        else:
+            stacked_style_masks[class_id] = torch.zeros((len(style_paths), 1, *style_f.shape[2:]), device=device)
 
-# Save the dictionaries as JSON files
-with open('style_means.json', 'w') as f:
-    json.dump(serializable_style_means, f)
+    return stacked_style_f, stacked_style_masks
 
-with open('style_stds.json', 'w') as f:
-    json.dump(serializable_style_stds, f)
+# Usage
+stacked_style_f, stacked_style_masks = process_styles(style_paths, args, vgg, device)
+print(f"Stacked style features shape: {stacked_style_f.shape}")
+for class_id, masks in stacked_style_masks.items():
+    print(f"Stacked masks for class {class_id} shape: {masks.shape}")
 
 
-accumulated_means = {}
 
-for style_path, class_means in style_means.items():
-    for class_id, mean_value in class_means.items():
-        if class_id not in accumulated_means:
-            accumulated_means[class_id] = 0.0 * np.ones(512)
-        accumulated_means[class_id] += mean_value    
 
-    nonzero_count = sum(1 for mean_value in class_means.values() if mean_value.any() != 0)
-    if nonzero_count > 0:
-        for class_id in class_means.keys():
-            accumulated_means[class_id] /= nonzero_count
-
-with open("mean_means.txt", "wb") as myFile:
-    pickle.dump(accumulated_means, myFile)
-
-accumulated_stds = {}
-
-for style_path, class_stds in style_stds.items():
-    for class_id, std_value in class_stds.items():
-        if class_id not in accumulated_stds:
-            accumulated_stds[class_id] = 0.0 * np.ones(512)
-        accumulated_stds[class_id] += std_value**2    
-
-    nonzero_count = sum(1 for std_value in class_stds.values() if std_value.any() != 0)
-    if nonzero_count > 0:
-        for class_id in class_stds.keys():
-            accumulated_stds[class_id] /= nonzero_count
-            accumulated_stds[class_id] = np.sqrt(accumulated_stds[class_id])
-
-with open("mean_stds.txt", "wb") as myFile:
-    pickle.dump(accumulated_stds, myFile)
 
 
 

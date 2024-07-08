@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 import net
 from function import coral
+from generate_style_stats import process_styles
 
 
 def get_sem_map(img_path, mask_dir):
@@ -124,7 +125,6 @@ parser.add_argument('--style_dir', type=str,
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
 parser.add_argument('--with_segmentation', type=str, required=True)
-parser.add_argument('--precomputed', type=str, required=True)
 
 # Additional options
 parser.add_argument('--content_size', type=int, default=512,
@@ -214,9 +214,29 @@ style_tf = test_transform(args.style_size, args.crop)
 content_mask_tf = mask_transform(args.content_size, args.crop)
 style_mask_tf = mask_transform(args.style_size, args.crop)
 
+
 for content_path in content_paths:
+
+    if (args.with_segmentation=="precomputed"):
+        print("yessssssssssssssssssss")
+        content = content_tf(Image.open(str(content_path)))
+        content_sem = get_sem_map(content_path,args.content_mask_dir)
+        content = content.to(device).unsqueeze(0)
+        content_sem = content_sem.to(device).unsqueeze(0)
+
+        stacked_style_f, stacked_style_masks = process_styles(style_paths, args, vgg, device)
+
+        with torch.no_grad():
+            output, content_f = style_transfer(adain, vgg, decoder, content, stacked_style_f, content_sem, stacked_style_masks,
+                                    args.alpha)
+            output_f = vgg(output)
+        output = output.cpu()
+
+        output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
+            content_path.stem, style_path.stem, args.save_ext)
+        save_image(output, str(output_name))
     
-    if do_interpolation:
+    elif do_interpolation:
         style = torch.stack([style_tf(Image.open(p)) for p in style_paths])
         style_sem = torch.stack([get_sem_map(Path(p),args.style_mask_dir).to(device) for p in style_paths])
         content_image = Image.open(str(content_path))

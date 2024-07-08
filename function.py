@@ -67,7 +67,35 @@ def calc_weighted_mean_std(feat, weights, eps=1e-5):
     feat_std = (feat_var + eps).sqrt().view(N, C, 1, 1)
     
     return feat_mean, feat_std
+
+
+def calc_weighted_mean_std_batch(feats, weights, eps=1e-5):
+    # feats: (B, N, C, H, W) where B is batch size, N is number of feature maps
+    # weights: (B, N, H, W)
     
+    size = feats.size()
+    assert len(size) == 5
+    B, N, C, H, W = size
+
+    # Reshape the tensors
+    feats_reshaped = feats.view(B, N, C, -1)
+    weights_reshaped = weights.view(B, N, 1, -1).repeat(1, 1, C, 1)
+
+    # Calculate weighted mean
+    weighted_sum = (feats_reshaped * weights_reshaped).sum(dim=(1, 3))
+    total_weights = weights_reshaped.sum(dim=(1, 3))
+    feat_mean = (weighted_sum / (total_weights + eps)).view(B, C, 1, 1)
+
+    # Calculate weighted variance
+    squared_diff = (feats_reshaped - feat_mean.view(B, 1, C, 1)) ** 2
+    weighted_squared_diff = (squared_diff * weights_reshaped).sum(dim=(1, 3))
+    feat_var = weighted_squared_diff / (total_weights + eps)
+
+    # Calculate weighted standard deviation
+    feat_std = (feat_var + eps).sqrt().view(B, C, 1, 1)
+
+    return feat_mean, feat_std
+
 
 
 def adaptive_instance_normalization(content_feat, style_feat,content_sem,style_sem):
@@ -97,8 +125,6 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
             style_mean, style_std = calc_weighted_mean_std(style_feat,target_mask)
         else:
             style_mean, style_std = calc_mean_std(style_feat)
-
-        print(style_mean.shape)
 
         normalized_feat = (content_feat - content_mean.expand(
             size)) / content_std.expand(size)
@@ -141,30 +167,17 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
 #     return adaIN_feat
 
 
-def adaptive_instance_normalization_precalculated(content_feat, style_feat, content_sem, style_sem):
-    assert (content_feat.size()[:2] == style_feat.size()[:2])
+def adaptive_instance_normalization_precalculated(content_feat, style_feats, content_sem, style_sems):
+    assert (content_feat.size()[:2] == style_feats.size()[:2])
     size = content_feat.size()
     
     adaIN_feat = torch.zeros(size).to(content_feat.device)
 
-    with open("mean_means.txt", "rb") as myFile:
-        means = pickle.load(myFile)
-    with open("mean_stds.txt", "rb") as myFile:
-        stds = pickle.load(myFile)
-
     for class_id in torch.unique(content_sem):
 
         class_id_float = class_id.item()
-        print(class_id_float)
 
-        try:
-            style_std = torch.from_numpy(stds[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        except KeyError:
-            style_std = torch.zeros(size)
-        try:
-            style_mean = torch.from_numpy(means[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        except KeyError:
-            style_mean = torch.zeros(size)
+        style_mean, style_std = calc_weighted_mean_std_batch(style_feats, style_sems)
         
         # Calculate content mean and standard deviation for the current class
         input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='nearest')
