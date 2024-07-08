@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 import net
 from function import coral
-from generate_style_stats import process_styles
 
 
 def get_sem_map(img_path, mask_dir):
@@ -90,7 +89,48 @@ def visualize_feature_maps(content_f, output_f, output_name):
                 dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
 
+def process_styles(style_paths, args, vgg, device):
+    all_style_f = []
+    all_style_masks = {}
+    all_classes = set()
 
+    for style_path in style_paths:
+        style = style_tf(Image.open(str(style_path)))
+        style_sem = get_sem_map(style_path, args.style_mask_dir)
+        
+        if style_sem is None:
+            print(f"No segmentation mask found for {style_path}. Skipping.")
+            continue
+        
+        style = style.to(device).unsqueeze(0)
+        style_sem = style_sem.to(device).unsqueeze(0)
+        style_f = vgg(style)
+        all_style_f.append(style_f)
+        
+        classes = torch.unique(style_sem)
+        all_classes.update(classes.cpu().numpy())
+        
+        for class_id in classes:
+            if class_id not in all_style_masks:
+                all_style_masks[class_id] = []
+            style_mask = F.interpolate((style_sem == class_id).float(), size=style_f.shape[2:], mode='nearest')
+            all_style_masks[class_id].append(style_mask)
+
+    # Stack all style features
+    stacked_style_f = torch.cat(all_style_f, dim=0)
+
+    # Create stacked masks for all classes, filling with zeros where necessary
+    stacked_style_masks = {}
+    for class_id in all_classes:
+        if class_id in all_style_masks:
+            masks = all_style_masks[class_id]
+            while len(masks) < len(style_paths):
+                masks.append(torch.zeros_like(masks[0]))
+            stacked_style_masks[class_id] = torch.cat(masks, dim=0)
+        else:
+            stacked_style_masks[class_id] = torch.zeros((len(style_paths), 1, *style_f.shape[2:]), device=device)
+
+    return stacked_style_f, stacked_style_masks
 
 def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
                    interpolation_weights=None):
