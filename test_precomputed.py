@@ -123,8 +123,6 @@ parser.add_argument('--style_dir', type=str,
                     help='Directory path to a batch of style images')
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
-parser.add_argument('--with_segmentation', type=str, required=True)
-parser.add_argument('--precomputed', type=str, required=True)
 
 # Additional options
 parser.add_argument('--content_size', type=int, default=512,
@@ -151,8 +149,7 @@ parser.add_argument(
     help='The weight for blending the style of multiple style images')
 parser.add_argument('--content_mask_dir',type=str, required=True, 
                     help='Directory path to segmantation Mask of content images')
-parser.add_argument('--style_mask_dir',type=str, required=True, 
-                    help='Directory path to segmantation Mask of style images')
+
 
 args = parser.parse_args()
 
