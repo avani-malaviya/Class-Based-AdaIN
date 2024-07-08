@@ -4,6 +4,7 @@ import re
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision.transforms import Resize
 from PIL import Image
 from torchvision import transforms
@@ -132,6 +133,7 @@ def process_styles(style_paths, args, vgg, device):
 
     return stacked_style_f, stacked_style_masks
 
+
 def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
                    interpolation_weights=None):
     assert (0.0 <= alpha <= 1.0)
@@ -258,7 +260,6 @@ style_mask_tf = mask_transform(args.style_size, args.crop)
 for content_path in content_paths:
 
     if (args.with_segmentation=="precomputed"):
-        print("yessssssssssssssssssss")
         content = content_tf(Image.open(str(content_path)))
         content_sem = get_sem_map(content_path,args.content_mask_dir)
         content = content.to(device).unsqueeze(0)
