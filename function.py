@@ -127,8 +127,10 @@ def adaptive_instance_normalization_precomputed(content_feat, content_sem, style
         style_mean_np = np.array(style_means[str(style_path)][str(class_id.item())])
         style_std_np = np.array(style_stds[str(style_path)][str(class_id.item())])
 
-        style_mean = torch.from_numpy(style_mean_np).to(content_feat.device)
-        style_std = torch.from_numpy(style_std_np).to(content_feat.device)
+        style_mean = torch.from_numpy(style_mean_np).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
+        style_std = torch.from_numpy(style_std_np).to(content_feat.device).unsqueeze(-1).unsqueeze(-1)
+
+        print(style_mean.shape)
 
         normalized_feat = (content_feat - content_mean.expand(
             size)) / content_std.expand(size)
