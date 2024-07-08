@@ -124,8 +124,8 @@ def adaptive_instance_normalization_precomputed(content_feat, content_sem, style
             style_stds = json.load(f)
 
 
-        style_mean = np.array(style_means[style_path][str(class_id.item())])
-        style_std = np.array(style_stds[style_path][str(class_id.item())])
+        style_mean = np.array(style_means[str(style_path)][str(class_id.item())])
+        style_std = np.array(style_stds[str(style_path)][str(class_id.item())])
 
         normalized_feat = (content_feat - content_mean.expand(
             size)) / content_std.expand(size)
