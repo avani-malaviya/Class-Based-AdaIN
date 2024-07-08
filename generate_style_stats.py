@@ -46,7 +46,6 @@ parser.add_argument('--crop', action='store_true', help='do center crop to creat
 parser.add_argument('--style_size', type=int, default=512, help='New (minimum) size for the style image, keeping the original size if set to 0')
 parser.add_argument('--style_dir', type=str, required=True, help='Directory path to a batch of style images')
 parser.add_argument('--style_mask_dir', type=str, required=True, help='Directory path to segmentation Mask of style images')
-parser.add_argument('--output_file', type=str, default='style_statistics.json', help='Output file to save style statistics')
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -89,18 +88,23 @@ for style_path in style_paths:
         style_means[style_path][class_id_float] = style_mean.squeeze().cpu().detach().numpy()
         style_stds[style_path][class_id_float] = style_std.squeeze().cpu().detach().numpy()
 
-# Convert numpy arrays to lists for JSON serialization
+serializable_style_means = {}
+serializable_style_stds = {}
+
 for style_path in style_means:
+    str_style_path = str(style_path)  # Convert PosixPath to string
+    serializable_style_means[str_style_path] = {}
+    serializable_style_stds[str_style_path] = {}
     for class_id in style_means[style_path]:
-        style_means[style_path][class_id] = style_means[style_path][class_id].tolist()
-        style_stds[style_path][class_id] = style_stds[style_path][class_id].tolist()
+        serializable_style_means[str_style_path][class_id] = style_means[style_path][class_id].tolist()
+        serializable_style_stds[str_style_path][class_id] = style_stds[style_path][class_id].tolist()
 
 # Save the dictionaries as JSON files
 with open('style_means.json', 'w') as f:
-    json.dump(style_means, f)
+    json.dump(serializable_style_means, f)
 
 with open('style_stds.json', 'w') as f:
-    json.dump(style_stds, f)
+    json.dump(serializable_style_stds, f)
 
 
 accumulated_means = {}
