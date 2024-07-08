@@ -3,15 +3,45 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
+from torchvision import transforms
 import matplotlib.pyplot as plt
 from PIL import Image
 import os
+import re
+from pathlib import Path
 
 # Load the data
 with open('style_means.json', 'r') as f:
     style_means = json.load(f)
 with open('style_stds.json', 'r') as f:
     style_stds = json.load(f)
+
+def mask_transform(size, crop):
+    transform_list = []
+    if size != 0:
+        transform_list.append(transforms.Resize(size, interpolation=Image.NEAREST))
+    if crop:
+        transform_list.append(transforms.CenterCrop(size))
+    transform_list.append(transforms.ToTensor())
+    transform = transforms.Compose(transform_list)
+    return transform
+
+content_mask_tf = mask_transform(512, None)
+
+def get_sem_map(img_path, mask_dir):
+    # Process content mask
+    match = re.match(r'(.*)\.png$', img_path.name)
+    if match:
+        base_name = match.group(1)
+        mask_path = str(Path(mask_dir) / (base_name + '_gtFine_labelIds.png'))
+        if Path(mask_path).exists():
+            sem_map = content_mask_tf(Image.open(str(mask_path)).convert('L'))
+        else:
+            sem_map = None
+    else:
+        sem_map = None
+
+    return sem_map
 
 # Prepare the data for clustering
 def prepare_combined_data(means_dict, stds_dict):
@@ -99,7 +129,9 @@ def visualize_clusters(clustered_data, class_id, n_clusters, output_dir):
             axes = axes.reshape(1, -1)
 
         for i, path in enumerate(paths):
-            img = Image.open(path)
+            style_sem = get_sem_map(path, 'input/style/cityscapes/labels/')
+            mask = (style_sem == class_id).float()
+            img = Image.open(path)*mask
             ax = axes[i // grid_size, i % grid_size]
             ax.imshow(img)
             ax.axis('off')
