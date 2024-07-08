@@ -135,11 +135,10 @@ def process_styles(style_paths, args, vgg, device):
 
 
 def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
-                   interpolation_weights=None):
+                   stacked_style=False):
     assert (0.0 <= alpha <= 1.0)
     content_f = vgg(content)
-    style_f = vgg(style)
-    if interpolation_weights:
+    if stacked_style:
         _, C, H, W = content_f.size()
         feat = torch.FloatTensor(1, C, H, W).zero_().to(device)
         base_feat = adain(content_f, style_f,content_sem,style_sem)
@@ -147,6 +146,7 @@ def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, 
             feat = feat + w * base_feat[i:i + 1]
         content_f = content_f[0:1]
     else:
+        style_f = vgg(style)
         feat = adain(content_f, style_f,content_sem,style_sem)
     feat = feat * alpha + content_f * (1 - alpha)
     return decoder(feat), content_f
@@ -269,7 +269,7 @@ for content_path in content_paths:
 
         with torch.no_grad():
             output, content_f = style_transfer(adain, vgg, decoder, content, stacked_style_f, content_sem, stacked_style_masks,
-                                    args.alpha)
+                                    args.alpha,stacked_style=True)
             output_f = vgg(output)
         output = output.cpu()
 
