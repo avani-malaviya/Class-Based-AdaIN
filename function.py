@@ -177,6 +177,8 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feats, con
 
         class_id_float = class_id.item()
 
+        print(style_sems.shape)
+
         style_mean, style_std = calc_weighted_mean_std_batch(style_feats, style_sems)
         
         # Calculate content mean and standard deviation for the current class
