@@ -178,7 +178,7 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feats, con
         try:
             style_mask = style_sems[class_id_float]
         except KeyError:
-            style_mask = torch.zeros(style_feats.shape[1:])
+            style_mask = torch.zeros(style_feats.shape)
 
         style_mean, style_std = calc_weighted_mean_std_batch(style_feats, style_mask)
 
