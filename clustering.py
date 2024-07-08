@@ -3,6 +3,9 @@ import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
+import matplotlib.pyplot as plt
+from PIL import Image
+import os
 
 # 1. Load the data (same as before)
 with open('style_means.json', 'r') as f:
@@ -66,3 +69,57 @@ for class_id in clustered_means:
         cluster_size = np.sum(clustered_means[class_id]['cluster_labels'] == i)
         print(f"    Cluster {i}: {cluster_size}")
     print()
+
+
+
+def visualize_clusters(clustered_data, style_paths, class_id, n_clusters, output_dir):
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Get cluster labels for this class
+    cluster_labels = clustered_data[class_id]['cluster_labels']
+
+    # Group style paths by cluster
+    cluster_images = {i: [] for i in range(n_clusters)}
+    for path, label in zip(style_paths, cluster_labels):
+        cluster_images[label].append(path)
+
+    # Visualize images for each cluster
+    for cluster in range(n_clusters):
+        paths = cluster_images[cluster]
+        n_images = len(paths)
+        
+        if n_images == 0:
+            print(f"No images in cluster {cluster} for class {class_id}")
+            continue
+
+        # Determine grid size
+        grid_size = int(np.ceil(np.sqrt(n_images)))
+        
+        fig, axes = plt.subplots(grid_size, grid_size, figsize=(15, 15))
+        fig.suptitle(f"Class {class_id} - Cluster {cluster}")
+
+        for i, path in enumerate(paths):
+            img = Image.open(path)
+            ax = axes[i // grid_size, i % grid_size]
+            ax.imshow(img)
+            ax.axis('off')
+            ax.set_title(os.path.basename(path), fontsize=8)
+
+        # Remove unused subplots
+        for i in range(n_images, grid_size * grid_size):
+            fig.delaxes(axes.flatten()[i])
+
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, f'class_{class_id}_cluster_{cluster}.png'))
+        plt.close()
+
+# Prepare style paths
+style_paths = list(style_means.keys())
+
+# Visualize clusters for means (you can do the same for stds if needed)
+output_dir = 'output/sim2real/cluster_visualizations'
+for class_id in clustered_means:
+    visualize_clusters(clustered_means, style_paths, class_id, n_clusters, output_dir)
+
+print(f"Visualizations saved in {output_dir}")
