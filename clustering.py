@@ -72,12 +72,13 @@ for class_id in clustered_means:
 
 
 
-def visualize_clusters(clustered_data, style_paths, class_id, n_clusters, output_dir):
+def visualize_clusters(clustered_data, class_id, n_clusters, output_dir):
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
-    # Get cluster labels for this class
+    # Get cluster labels and style paths for this class
     cluster_labels = clustered_data[class_id]['cluster_labels']
+    style_paths = clustered_data[class_id]['style_paths']
 
     # Group style paths by cluster
     cluster_images = {i: [] for i in range(n_clusters)}
@@ -94,10 +95,16 @@ def visualize_clusters(clustered_data, style_paths, class_id, n_clusters, output
             continue
 
         # Determine grid size
-        grid_size = int(np.ceil(np.sqrt(n_images)))
+        grid_size = max(1, int(np.ceil(np.sqrt(n_images))))
         
         fig, axes = plt.subplots(grid_size, grid_size, figsize=(15, 15))
         fig.suptitle(f"Class {class_id} - Cluster {cluster}")
+
+        # Make sure axes is always 2D
+        if grid_size == 1:
+            axes = np.array([[axes]])
+        elif grid_size > 1 and axes.ndim == 1:
+            axes = axes.reshape(1, -1)
 
         for i, path in enumerate(paths):
             img = Image.open(path)
@@ -114,6 +121,7 @@ def visualize_clusters(clustered_data, style_paths, class_id, n_clusters, output
         plt.savefig(os.path.join(output_dir, f'class_{class_id}_cluster_{cluster}.png'))
         plt.close()
 
+        
 # Prepare style paths
 style_paths = list(style_means.keys())
 
