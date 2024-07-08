@@ -174,8 +174,13 @@ def adaptive_instance_normalization_precalculated(content_feat, style_feats, con
     for class_id in torch.unique(content_sem):
 
         class_id_float = class_id.item()
+        
+        try:
+            style_mask = style_sems[class_id_float]
+        except KeyError:
+            style_mask = torch.zeros(style_feats.shape[1:])
 
-        style_mean, style_std = calc_weighted_mean_std_batch(style_feats, style_sems[class_id_float])
+        style_mean, style_std = calc_weighted_mean_std_batch(style_feats, style_mask)
 
         # Calculate content mean and standard deviation for the current class
         input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='nearest')
