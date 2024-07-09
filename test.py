@@ -91,20 +91,16 @@ def visualize_feature_maps(content_f, output_f, output_name):
 
 
 
-def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
-                   interpolation_weights=None):
+def style_transfer(adain, vgg, decoder, content, content_sem, style = None, style_sem = None, style_means = None, style_stds = None, alpha=1.0):
     assert (0.0 <= alpha <= 1.0)
     content_f = vgg(content)
-    style_f = vgg(style)
-    if interpolation_weights:
-        _, C, H, W = content_f.size()
-        feat = torch.FloatTensor(1, C, H, W).zero_().to(device)
-        base_feat = adain(content_f, style_f,content_sem,style_sem)
-        for i, w in enumerate(interpolation_weights):
-            feat = feat + w * base_feat[i:i + 1]
-        content_f = content_f[0:1]
-    else:
-        feat = adain(content_f, style_f,content_sem,style_sem)
+    if ((style_means is not None) and (style_stds is not None)):
+        feat = adain(content_f, content_sem, style_means, style_stds)
+    elif ((style is not None) and (style_sem is not None)):
+        style_f = vgg(style)
+        feat = adain(content_f, style_f, content_sem, style_sem)
+    else: 
+        print("Incomplete Style Data")
     feat = feat * alpha + content_f * (1 - alpha)
     return decoder(feat), content_f
 
@@ -121,9 +117,12 @@ parser.add_argument('--style', type=str,
                     interpolation or spatial control')
 parser.add_argument('--style_dir', type=str,
                     help='Directory path to a batch of style images')
+parser.add_argument('--style_files', type=str,
+                    help='Comma separated paths to .txt files containing class based style means and stds respectively')
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
-parser.add_argument('--with_segmentation', type=str, required=True)
+parser.add_argument('--adain_method', type=str, required=True)
+
 
 # Additional options
 parser.add_argument('--content_size', type=int, default=512,
@@ -150,14 +149,14 @@ parser.add_argument(
     help='The weight for blending the style of multiple style images')
 parser.add_argument('--content_mask_dir',type=str, required=True, 
                     help='Directory path to segmantation Mask of content images')
-parser.add_argument('--style_mask_dir',type=str, required=True, 
+parser.add_argument('--style_mask_dir',type=str, 
                     help='Directory path to segmantation Mask of style images')
 
 args = parser.parse_args()
 
-if (args.with_segmentation=="Averaged"):
-    from function import adaptive_instance_normalization_averaged as adain
-elif (args.with_segmentation=="True"):
+if (args.adain_method=="saved_stats"):
+    from function import adaptive_instance_normalization_saved_stats as adain
+elif (args.adain_method=="with_segmentation"):
     from function import adaptive_instance_normalization_by_segmentation as adain
 else:
     from function import adaptive_instance_normalization as adain
@@ -178,17 +177,11 @@ else:
     content_paths = [f for f in content_dir.glob('*')]
 
 # Either --style or --styleDir should be given.
-assert (args.style or args.style_dir)
+assert (args.style or args.style_dir or args.style_files) 
 if args.style:
-    style_paths = args.style.split(',')
-    if len(style_paths) == 1:
-        style_paths = [Path(args.style)]
-    else:
-        do_interpolation = True
-        assert (args.style_interpolation_weights != ''), \
-            'Please specify interpolation weights'
-        weights = [int(i) for i in args.style_interpolation_weights.split(',')]
-        interpolation_weights = [w / sum(weights) for w in weights]
+    style_paths = [Path(args.style)]
+elif args.style_files:
+    style_means, style_stds = args.style_files.split(',')
 else:
     style_dir = Path(args.style_dir)
     style_paths = [f for f in style_dir.glob('*')]
@@ -214,26 +207,20 @@ style_mask_tf = mask_transform(args.style_size, args.crop)
 
 for content_path in content_paths:
     
-    if do_interpolation:
-        style = torch.stack([style_tf(Image.open(p)) for p in style_paths])
-        style_sem = torch.stack([get_sem_map(Path(p),args.style_mask_dir).to(device) for p in style_paths])
-        content_image = Image.open(str(content_path))
-        style_height, style_width = style.shape[2], style.shape[3]
-        content_image = Resize((style_height, style_width))(content_image)
-        content = content_tf(content_image).unsqueeze(0)
-        content = content.expand_as(style)
-        content_sem = get_sem_map(content_path,args.content_mask_dir).to(device).unsqueeze(0)
-        style = style.to(device)
-        content = content.to(device)
+    if args.adain_method=="saved_stats":
+        content = content_tf(Image.open(str(content_path)))
+        content_sem = get_sem_map(content_path,args.content_mask_dir)
+        content = content.to(device).unsqueeze(0)
+        content_sem = content_sem.to(device).unsqueeze(0)
+
         with torch.no_grad():
-            output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
-                                    args.alpha, interpolation_weights)
+            output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
             output_f = vgg(output)
         output = output.cpu()
-        output_name = output_dir / '{:s}_interpolation{:s}'.format(
+
+        output_name = output_dir / '{:s}_stylized{:s}'.format(
             content_path.stem, args.save_ext)
         save_image(output, str(output_name))
-        #visualize_feature_maps(content_f, output_f, output_name)
 
     else:
         for style_path in style_paths:
@@ -253,8 +240,7 @@ for content_path in content_paths:
             style_sem = style_sem.to(device).unsqueeze(0)
 
             with torch.no_grad():
-                output, content_f = style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem,
-                                        args.alpha)
+                output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style=style, style_sem=style_sem, alpha=args.alpha)
                 output_f = vgg(output)
             output = output.cpu()
 

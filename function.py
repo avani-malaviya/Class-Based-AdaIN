@@ -133,17 +133,16 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
 
 #     return adaIN_feat
 
-def adaptive_instance_normalization_averaged(content_feat, style_feat, content_sem, style_sem):
-    assert (content_feat.size()[:2] == style_feat.size()[:2])
+def adaptive_instance_normalization_saved_stats(content_feat, content_sem, style_means, style_stds):
     size = content_feat.size()
     
     total_style_mean = torch.zeros(size).to(content_feat.device)
     total_style_var = torch.zeros(size).to(content_feat.device)
     total_normalized_feat = torch.zeros(size).to(content_feat.device)
 
-    with open("mean_means.txt", "rb") as myFile:
+    with open(style_means, "rb") as myFile:
         means = pickle.load(myFile)
-    with open("mean_stds.txt", "rb") as myFile:
+    with open(style_stds, "rb") as myFile:
         stds = pickle.load(myFile)
 
     for class_id in torch.unique(content_sem):
@@ -172,6 +171,7 @@ def adaptive_instance_normalization_averaged(content_feat, style_feat, content_s
     total_style_std = torch.sqrt(total_style_var)
     adaIN_feat = total_normalized_feat * total_style_std + total_style_mean
     return adaIN_feat
+    
 
 # def adaptive_instance_normalization_averaged(content_feat, style_feat, content_sem, style_sem):
 #     assert (content_feat.size()[:2] == style_feat.size()[:2])
