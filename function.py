@@ -87,8 +87,8 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
     adaIN_feat = torch.zeros(size).to(content_feat.device)
 
     for class_id in torch.unique(content_sem):
-        input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'nearest')
-        target_mask = F.interpolate((style_sem == class_id).float(), size = style_feat.shape[2:], mode = 'nearest')
+        input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'bilinear')
+        target_mask = F.interpolate((style_sem == class_id).float(), size = style_feat.shape[2:], mode = 'bilinear')
 
         content_mean, content_std, _ = calc_weighted_mean_std(content_feat,input_mask)
 
@@ -118,7 +118,6 @@ def adaptive_instance_normalization_averaged(content_feat, style_feat, content_s
     for class_id in torch.unique(content_sem):
 
         class_id_float = class_id.item()
-        print(class_id_float)
 
         try:
             style_std = torch.from_numpy(stds[class_id_float]).to(content_feat.device).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)

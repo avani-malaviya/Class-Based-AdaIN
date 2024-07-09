@@ -116,6 +116,8 @@ with open('style_stds.json', 'w') as f:
 accumulated_means = {}
 total_N = {}
 
+eps = 1e-5
+
 for style_path, class_means in style_means.items():
     for class_id, mean_value in class_means.items():
         if class_id not in accumulated_means:
@@ -126,8 +128,8 @@ for style_path, class_means in style_means.items():
         total_N[class_id] += N
 
 for class_id in accumulated_means:
-    if total_N[class_id] > 0:
-        accumulated_means[class_id] /= total_N[class_id]
+    total_N[class_id] += eps
+    accumulated_means[class_id] /= total_N[class_id]
 
 with open("mean_means.txt", "wb") as myFile:
     pickle.dump(accumulated_means, myFile)
@@ -147,10 +149,10 @@ for style_path, class_stds in style_stds.items():
 
 accumulated_stds = {}
 for class_id in accumulated_vars:
-    if total_N[class_id] > 1:
-        accumulated_vars[class_id] -= total_N[class_id] * accumulated_means[class_id]**2
-        accumulated_vars[class_id] /= (total_N[class_id] - 1)
-        accumulated_stds[class_id] = np.sqrt(accumulated_vars[class_id])
+    total_N[class_id] += eps
+    accumulated_vars[class_id] -= total_N[class_id] * accumulated_means[class_id]**2
+    accumulated_vars[class_id] /= (total_N[class_id] - 1)
+    accumulated_stds[class_id] = np.sqrt(accumulated_vars[class_id])
 
 with open("mean_stds.txt", "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
