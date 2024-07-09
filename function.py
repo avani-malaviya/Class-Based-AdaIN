@@ -66,34 +66,7 @@ def calc_weighted_mean_std(feat, weights, eps=1e-5):
     # Calculate weighted standard deviation
     feat_std = (feat_var + eps).sqrt().view(N, C, 1, 1)
     
-    return feat_mean, feat_std
-
-
-def calc_weighted_mean_std_batch(feats, weights, eps=1e-5):
-    # feats: (B, N, C, H, W) where B is batch size, N is number of feature maps
-    # weights: (B, N, H, W)
-    size = feats.size()
-    assert len(size) == 5
-    B, N, C, H, W = size
-
-    # Reshape the tensors
-    feats_reshaped = feats.view(B * N, C, -1)
-    weights_reshaped = weights.view(B * N, 1, -1).repeat(1, C, 1)
-
-    # Calculate weighted mean
-    weighted_sum = (feats_reshaped * weights_reshaped).sum(dim=(0, 2))
-    total_weights = weights_reshaped.sum()
-    feat_mean = (weighted_sum / (total_weights + eps)).view(C, 1, 1)
-
-    # Calculate weighted variance
-    squared_diff = (feats_reshaped - feat_mean.view(1, C, 1)) ** 2
-    weighted_squared_diff = (squared_diff * weights_reshaped).sum(dim=(0, 2))
-    feat_var = weighted_squared_diff / (total_weights + eps)
-
-    # Calculate weighted standard deviation
-    feat_std = (feat_var + eps).sqrt().view(C, 1, 1)
-
-    return feat_mean, feat_std
+    return feat_mean, feat_std, total_weights
 
 
 
@@ -118,10 +91,10 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
         input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'nearest')
         target_mask = F.interpolate((style_sem == class_id).float(), size = style_feat.shape[2:], mode = 'nearest')
 
-        content_mean, content_std = calc_weighted_mean_std(content_feat,input_mask)
+        content_mean, content_std, _ = calc_weighted_mean_std(content_feat,input_mask)
 
         if torch.any((style_sem == class_id).float() != 0):
-            style_mean, style_std = calc_weighted_mean_std(style_feat,target_mask)
+            style_mean, style_std, _ = calc_weighted_mean_std(style_feat,target_mask)
         else:
             style_mean, style_std = calc_mean_std(style_feat)
 
@@ -132,33 +105,6 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
 
     return adaIN_feat
 
-
-def adaptive_instance_normalization_precalculated(content_feat, style_feats, content_sem, style_sems):
-    size = content_feat.size()
-    
-    adaIN_feat = torch.zeros(size).to(content_feat.device)
-
-    for class_id in torch.unique(content_sem):
-
-        class_id_float = class_id.item()
-        
-        try:
-            style_mask = style_sems[class_id_float]
-        except KeyError:
-            style_mask = torch.zeros(style_feats.shape)
-
-        style_mean, style_std = calc_weighted_mean_std_batch(style_feats, style_mask)
-
-        # Calculate content mean and standard deviation for the current class
-        input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='nearest')
-        content_mean, content_std = calc_weighted_mean_std(content_feat, input_mask)
-
-        # Apply adaptive instance normalization
-        normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
-        normalized_feat = normalized_feat * input_mask
-        adaIN_feat += normalized_feat * style_std + style_mean*input_mask
-
-    return adaIN_feat
 
 
 def _calc_feat_flatten_mean_std(feat):

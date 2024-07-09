@@ -4,7 +4,6 @@ import re
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torchvision.transforms import Resize
 from PIL import Image
 from torchvision import transforms
@@ -90,61 +89,21 @@ def visualize_feature_maps(content_f, output_f, output_name):
                 dpi=300, bbox_inches='tight', pad_inches=0.1)
     plt.close(fig)
 
-def process_styles(style_paths, args, vgg, device):
-    all_style_f = []
-    all_style_masks = {}
-    all_classes = set()
-
-    for style_path in style_paths:
-        style = style_tf(Image.open(str(style_path)))
-        style_sem = get_sem_map(style_path, args.style_mask_dir)
-        
-        if style_sem is None:
-            print(f"No segmentation mask found for {style_path}. Skipping.")
-            continue
-        
-        style = style.to(device).unsqueeze(0)
-        style_sem = style_sem.to(device).unsqueeze(0)
-        style_f = vgg(style)
-        all_style_f.append(style_f)
-        
-        classes = torch.unique(style_sem)
-        all_classes.update(classes.cpu().numpy())
-        
-        for class_id in classes:
-            if class_id not in all_style_masks:
-                all_style_masks[class_id] = []
-            style_mask = F.interpolate((style_sem == class_id).float(), size=style_f.shape[2:], mode='nearest')
-            all_style_masks[class_id].append(style_mask)
-
-    # Stack all style features
-    stacked_style_f = torch.cat(all_style_f, dim=0).to(device)
-
-    # Create stacked masks for all classes, filling with zeros where necessary
-    stacked_style_masks = {}
-    for class_id in all_classes:
-        if class_id in all_style_masks:
-            masks = all_style_masks[class_id]
-            while len(masks) < len(style_paths):
-                masks.append(torch.zeros_like(masks[0]))
-            stacked_style_masks[class_id] = torch.cat(masks, dim=0)
-        else:
-            stacked_style_masks[class_id] = torch.zeros((len(style_paths), 1, *style_f.shape[2:]), device=device)
-
-    return stacked_style_f, stacked_style_masks
 
 
 def style_transfer(adain, vgg, decoder, content, style, content_sem, style_sem, alpha=1.0,
-                   stacked_style=False):
+                   interpolation_weights=None):
     assert (0.0 <= alpha <= 1.0)
     content_f = vgg(content)
-    if stacked_style:
+    style_f = vgg(style)
+    if interpolation_weights:
         _, C, H, W = content_f.size()
         feat = torch.FloatTensor(1, C, H, W).zero_().to(device)
-        feat = adain(content_f, style.unsqueeze(1),content_sem,style_sem)
+        base_feat = adain(content_f, style_f,content_sem,style_sem)
+        for i, w in enumerate(interpolation_weights):
+            feat = feat + w * base_feat[i:i + 1]
         content_f = content_f[0:1]
     else:
-        style_f = vgg(style)
         feat = adain(content_f, style_f,content_sem,style_sem)
     feat = feat * alpha + content_f * (1 - alpha)
     return decoder(feat), content_f
@@ -165,6 +124,7 @@ parser.add_argument('--style_dir', type=str,
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
 parser.add_argument('--with_segmentation', type=str, required=True)
+parser.add_argument('--precomputed', type=str, required=True)
 
 # Additional options
 parser.add_argument('--content_size', type=int, default=512,
@@ -199,8 +159,6 @@ args = parser.parse_args()
 
 if (args.with_segmentation=="True"):
     from function import adaptive_instance_normalization_by_segmentation as adain
-elif (args.with_segmentation=="precomputed"):
-    from function import adaptive_instance_normalization_precalculated as adain
 else:
     from function import adaptive_instance_normalization as adain
 
@@ -254,29 +212,9 @@ style_tf = test_transform(args.style_size, args.crop)
 content_mask_tf = mask_transform(args.content_size, args.crop)
 style_mask_tf = mask_transform(args.style_size, args.crop)
 
-
 for content_path in content_paths:
-
-    if (args.with_segmentation=="precomputed"):
-        content = content_tf(Image.open(str(content_path)))
-        content_sem = get_sem_map(content_path,args.content_mask_dir)
-        content = content.to(device).unsqueeze(0)
-        content_sem = content_sem.to(device).unsqueeze(0)
-
-        stacked_style_f, stacked_style_masks = process_styles(style_paths, args, vgg, device)
-
-        with torch.no_grad():
-            output, content_f = style_transfer(adain, vgg, decoder, content, stacked_style_f, content_sem, stacked_style_masks,
-                                    args.alpha,stacked_style=True)
-            output_f = vgg(output)
-        output = output.cpu()
-
-        output_name = output_dir / '{:s}_stylized{:s}'.format(
-            content_path.stem, args.save_ext)
-        save_image(output, str(output_name))
-        
     
-    elif do_interpolation:
+    if do_interpolation:
         style = torch.stack([style_tf(Image.open(p)) for p in style_paths])
         style_sem = torch.stack([get_sem_map(Path(p),args.style_mask_dir).to(device) for p in style_paths])
         content_image = Image.open(str(content_path))
