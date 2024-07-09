@@ -156,8 +156,9 @@ parser.add_argument('--style_mask_dir',type=str, required=True,
 
 args = parser.parse_args()
 
-
-if (args.with_segmentation=="True"):
+if (args.with_segmentation=="Averaged"):
+    from function import adaptive_instance_normalization_averaged as adain
+elif (args.with_segmentation=="True"):
     from function import adaptive_instance_normalization_by_segmentation as adain
 else:
     from function import adaptive_instance_normalization as adain
