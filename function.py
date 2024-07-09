@@ -131,7 +131,7 @@ def adaptive_instance_normalization_averaged(content_feat, style_feat, content_s
         
         # Calculate content mean and standard deviation for the current class
         input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='nearest')
-        content_mean, content_std = calc_weighted_mean_std(content_feat, input_mask)
+        content_mean, content_std, _ = calc_weighted_mean_std(content_feat, input_mask)
 
         # Apply adaptive instance normalization
         normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
