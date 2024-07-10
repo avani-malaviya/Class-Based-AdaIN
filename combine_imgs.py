@@ -14,9 +14,9 @@ def combine_images(dir_content, dir_style, dir_stylized, output_dir):
         # Extract the base names
         imgname, ext = os.path.splitext(filename)
         
-        if imgname.endswith("_interpolation"):
+        if imgname.endswith("_stylized"):
             # For interpolated images, just use the content image
-            base_content = imgname.rsplit("_interpolation", 1)[0]
+            base_content = imgname.rsplit("_stylized", 1)[0]
             img_content = cv2.imread(os.path.join(dir_content, base_content + ".png"))
             img_stylized = cv2.imread(os.path.join(dir_stylized, filename))
             
