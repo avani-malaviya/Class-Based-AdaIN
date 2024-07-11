@@ -159,8 +159,6 @@ class Net(nn.Module):
         return input
 
     def calc_content_loss(self, input, target):
-        print(input.size)
-        print(target.size)
         assert (input.size() == target.size())
         assert (target.requires_grad is False)
         return self.mse_loss(input, target)
@@ -199,14 +197,15 @@ class Net(nn.Module):
         content_feat = self.encode(content)
         t = self.adain(content_feat, style_feats[-1], content_sem, style_sem)
         t = alpha * t + (1 - alpha) * content_feat
+        
+        g_t = t
 
         # Modify this part
         for layer in self.decoder:
             if isinstance(layer, SegmentNormalizeLayer):
-                t = layer(t, content_sem)
+                g_t = layer(g_t, content_sem)
             else:
-                t = layer(t)
-        g_t = t  # The final output
+                g_t = layer(g_t)
 
         g_t_feats = self.encode_with_intermediate(g_t)
 
