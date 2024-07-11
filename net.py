@@ -159,6 +159,8 @@ class Net(nn.Module):
         return input
 
     def calc_content_loss(self, input, target):
+        print(input.size)
+        print(target.size)
         assert (input.size() == target.size())
         assert (target.requires_grad is False)
         return self.mse_loss(input, target)
