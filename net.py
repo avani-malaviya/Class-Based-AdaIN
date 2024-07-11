@@ -40,7 +40,7 @@ decoder = nn.Sequential(
     nn.ReflectionPad2d((1, 1, 1, 1)),
     nn.Conv2d(512, 256, (3, 3)),
     nn.ReLU(),
-    #SegmentNormalizeLayer(256),  # Add this layer after some conv layers
+    SegmentNormalizeLayer(256),  # Add this layer after some conv layers
     nn.Upsample(scale_factor=2, mode='bilinear'),
     nn.ReflectionPad2d((1, 1, 1, 1)),
     nn.Conv2d(256, 256, (3, 3)),
