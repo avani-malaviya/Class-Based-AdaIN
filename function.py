@@ -60,7 +60,7 @@ def calc_weighted_mean_std(feat, weights, eps=1e-5):
     
     # Calculate weighted variance
     squared_diff = (feat_reshaped - feat_mean.squeeze(-1).squeeze(-1).unsqueeze(-1)) ** 2
-    weighted_squared_diff = (squared_diff * weights_reshaped).sum(dim=2)
+    weighted_squared_diff = (squared_diff * weights_reshaped**2).sum(dim=2)
     feat_var = weighted_squared_diff / (total_weights + eps)
     
     # Calculate weighted standard deviation
@@ -159,7 +159,7 @@ def adaptive_instance_normalization_saved_stats(content_feat, content_sem, style
             style_mean = torch.zeros(size)
         
         # Calculate content mean and standard deviation for the current class
-        input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='nearest')
+        input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='bilinear')
         content_mean, content_std, _ = calc_weighted_mean_std(content_feat, input_mask)
 
         total_style_mean += style_mean*input_mask
