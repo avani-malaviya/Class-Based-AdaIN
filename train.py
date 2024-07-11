@@ -135,7 +135,11 @@ wandb.init(project="Sim2Real_AdaIN", config={
 })
 
 decoder = net.decoder
-decoder.load_state_dict(torch.load(args.decoder))
+try:
+    decoder.load_state_dict(torch.load(args.decoder))
+except RuntimeError:
+    print("Unable to load the old decoder state. Initializing with random weights.")
+    # Optionally, you can implement a weight transfer method here if needed
 vgg = net.vgg
 
 vgg.load_state_dict(torch.load(args.vgg))
