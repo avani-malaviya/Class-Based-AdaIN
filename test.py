@@ -180,11 +180,12 @@ else:
 assert (args.style or args.style_dir or args.style_files) 
 if args.style:
     style_paths = [Path(args.style)]
-elif args.style_files:
-    style_means, style_stds = args.style_files.split(',')
 else:
     style_dir = Path(args.style_dir)
     style_paths = [f for f in style_dir.glob('*')]
+if args.style_files:
+    style_means, style_stds = args.style_files.split(',')
+
 
 decoder = net.decoder
 vgg = net.vgg
