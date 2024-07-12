@@ -38,47 +38,108 @@ class SegmentNormalizeLayer(nn.Module):
 class Decoder(nn.Module):
     def __init__(self):
         super(Decoder, self).__init__()
-        self.layers = nn.ModuleList([
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(512, 256, (3, 3)),
-            nn.ReLU(),
-            SegmentNormalizeLayer(256),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(256, 256, (3, 3)),
-            nn.ReLU(),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(256, 256, (3, 3)),
-            nn.ReLU(),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(256, 256, (3, 3)),
-            nn.ReLU(),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(256, 128, (3, 3)),
-            nn.ReLU(),
-            SegmentNormalizeLayer(128),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(128, 128, (3, 3)),
-            nn.ReLU(),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(128, 64, (3, 3)),
-            nn.ReLU(),
-            SegmentNormalizeLayer(64),
-            nn.Upsample(scale_factor=2, mode='bilinear'),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(64, 64, (3, 3)),
-            nn.ReLU(),
-            nn.ReflectionPad2d((1, 1, 1, 1)),
-            nn.Conv2d(64, 3, (3, 3)),
-        ])
+        
+        # Layer 1
+        self.pad1 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv1 = nn.Conv2d(512, 256, (3, 3))
+        self.relu1 = nn.ReLU()
+        self.norm1 = SegmentNormalizeLayer(256)
+        self.up1 = nn.Upsample(scale_factor=2, mode='bilinear')
+        
+        # Layer 2
+        self.pad2 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv2 = nn.Conv2d(256, 256, (3, 3))
+        self.relu2 = nn.ReLU()
+        
+        # Layer 3
+        self.pad3 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv3 = nn.Conv2d(256, 256, (3, 3))
+        self.relu3 = nn.ReLU()
+        
+        # Layer 4
+        self.pad4 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv4 = nn.Conv2d(256, 256, (3, 3))
+        self.relu4 = nn.ReLU()
+        
+        # Layer 5
+        self.pad5 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv5 = nn.Conv2d(256, 128, (3, 3))
+        self.relu5 = nn.ReLU()
+        self.norm5 = SegmentNormalizeLayer(128)
+        self.up5 = nn.Upsample(scale_factor=2, mode='bilinear')
+        
+        # Layer 6
+        self.pad6 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv6 = nn.Conv2d(128, 128, (3, 3))
+        self.relu6 = nn.ReLU()
+        
+        # Layer 7
+        self.pad7 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv7 = nn.Conv2d(128, 64, (3, 3))
+        self.relu7 = nn.ReLU()
+        self.norm7 = SegmentNormalizeLayer(64)
+        self.up7 = nn.Upsample(scale_factor=2, mode='bilinear')
+        
+        # Layer 8
+        self.pad8 = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv8 = nn.Conv2d(64, 64, (3, 3))
+        self.relu8 = nn.ReLU()
+        
+        # Final Layer
+        self.pad_final = nn.ReflectionPad2d((1, 1, 1, 1))
+        self.conv_final = nn.Conv2d(64, 3, (3, 3))
 
     def forward(self, x, seg_map):
-        for layer in self.layers:
-            if isinstance(layer, SegmentNormalizeLayer):
-                x = layer(x, seg_map)
-            else:
-                x = layer(x)
+        # Layer 1
+        x = self.pad1(x)
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.norm1(x, seg_map)
+        x = self.up1(x)
+        
+        # Layer 2
+        x = self.pad2(x)
+        x = self.conv2(x)
+        x = self.relu2(x)
+        
+        # Layer 3
+        x = self.pad3(x)
+        x = self.conv3(x)
+        x = self.relu3(x)
+        
+        # Layer 4
+        x = self.pad4(x)
+        x = self.conv4(x)
+        x = self.relu4(x)
+        
+        # Layer 5
+        x = self.pad5(x)
+        x = self.conv5(x)
+        x = self.relu5(x)
+        x = self.norm5(x, seg_map)
+        x = self.up5(x)
+        
+        # Layer 6
+        x = self.pad6(x)
+        x = self.conv6(x)
+        x = self.relu6(x)
+        
+        # Layer 7
+        x = self.pad7(x)
+        x = self.conv7(x)
+        x = self.relu7(x)
+        x = self.norm7(x, seg_map)
+        x = self.up7(x)
+        
+        # Layer 8
+        x = self.pad8(x)
+        x = self.conv8(x)
+        x = self.relu8(x)
+        
+        # Final Layer
+        x = self.pad_final(x)
+        x = self.conv_final(x)
+        
         return x
 
 vgg = nn.Sequential(
