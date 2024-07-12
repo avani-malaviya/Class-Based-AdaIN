@@ -102,7 +102,7 @@ def style_transfer(adain, vgg, decoder, content, content_sem, style = None, styl
     else: 
         print("Incomplete Style Data")
     feat = feat * alpha + content_f * (1 - alpha)
-    return decoder(feat, content_sem), content_f
+    return decoder(feat), content_f
 
 
 parser = argparse.ArgumentParser()

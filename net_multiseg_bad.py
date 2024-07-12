@@ -6,37 +6,80 @@ import scipy.sparse
 
 from function import calc_mean_std
 
-decoder = nn.Sequential(
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(512, 256, (3, 3)),
-    nn.ReLU(),
-    nn.Upsample(scale_factor=2, mode='bilinear'),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 256, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 256, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 256, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(256, 128, (3, 3)),
-    nn.ReLU(),
-    nn.Upsample(scale_factor=2, mode='bilinear'),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(128, 128, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(128, 64, (3, 3)),
-    nn.ReLU(),
-    nn.Upsample(scale_factor=2, mode='bilinear'),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(64, 64, (3, 3)),
-    nn.ReLU(),
-    nn.ReflectionPad2d((1, 1, 1, 1)),
-    nn.Conv2d(64, 3, (3, 3)),
-)
+
+class SegmentNormalizeLayer(nn.Module):
+    def __init__(self, num_features):
+        super(SegmentNormalizeLayer, self).__init__()
+        self.num_features = num_features
+        self.norm = nn.InstanceNorm2d(num_features)
+
+    def forward(self, x, seg_map):
+        # Ensure seg_map is the same spatial size as x
+        seg_map = F.interpolate(seg_map.float(), size=x.shape[2:], mode='nearest')
+        
+        output = torch.zeros_like(x)
+        unique_classes = torch.unique(seg_map)
+        
+        for class_id in unique_classes:
+            # Create a mask for this class
+            mask = (seg_map == class_id).float()
+            
+            # Apply the mask to the features
+            class_features = x * mask
+            
+            # Normalize the features for this class
+            normalized_features = self.norm(class_features)
+            
+            # Add to the output
+            output += normalized_features
+
+        return output
+
+class Decoder(nn.Module):
+    def __init__(self):
+        super(Decoder, self).__init__()
+        self.layers = nn.ModuleList([
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(512, 256, (3, 3)),
+            nn.ReLU(),
+            SegmentNormalizeLayer(256),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(256, 256, (3, 3)),
+            nn.ReLU(),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(256, 256, (3, 3)),
+            nn.ReLU(),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(256, 256, (3, 3)),
+            nn.ReLU(),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(256, 128, (3, 3)),
+            nn.ReLU(),
+            SegmentNormalizeLayer(128),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(128, 128, (3, 3)),
+            nn.ReLU(),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(128, 64, (3, 3)),
+            nn.ReLU(),
+            SegmentNormalizeLayer(64),
+            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(64, 64, (3, 3)),
+            nn.ReLU(),
+            nn.ReflectionPad2d((1, 1, 1, 1)),
+            nn.Conv2d(64, 3, (3, 3)),
+        ])
+
+    def forward(self, x, seg_map):
+        for layer in self.layers:
+            if isinstance(layer, SegmentNormalizeLayer):
+                x = layer(x, seg_map)
+            else:
+                x = layer(x)
+        return x
 
 vgg = nn.Sequential(
     nn.Conv2d(3, 3, (1, 1)),
@@ -165,8 +208,16 @@ class Net(nn.Module):
         content_feat = self.encode(content)
         t = self.adain(content_feat, style_feats[-1], content_sem, style_sem)
         t = alpha * t + (1 - alpha) * content_feat
+        
+        g_t = t
 
-        g_t = self.decoder(t)
+        # Modify this part
+        for layer in self.decoder:
+            if isinstance(layer, SegmentNormalizeLayer):
+                g_t = layer(g_t, content_sem)
+            else:
+                g_t = layer(g_t)
+
         g_t_feats = self.encode_with_intermediate(g_t)
 
         loss_c = self.calc_content_loss(g_t_feats[-1], t)
@@ -174,4 +225,4 @@ class Net(nn.Module):
         for i in range(4):
             loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
         
-        return loss_c, loss_s 
+        return loss_c, loss_s
