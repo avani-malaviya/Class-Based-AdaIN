@@ -88,11 +88,15 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
     total_style_var = torch.zeros(size).to(content_feat.device)
     total_normalized_feat = torch.zeros(size).to(content_feat.device)
 
+    content_mean, content_std = calc_mean_std(content_feat)
+
+    total_normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
+
     for class_id in torch.unique(content_sem):
         input_mask = F.interpolate((content_sem == class_id).float(), size = content_feat.shape[2:], mode = 'bilinear')
         target_mask = F.interpolate((style_sem == class_id).float(), size = style_feat.shape[2:], mode = 'bilinear')
 
-        content_mean, content_std, _ = calc_weighted_mean_std(content_feat,input_mask)
+        # content_mean, content_std, _ = calc_weighted_mean_std(content_feat,input_mask)
 
         if torch.any((style_sem == class_id).float() != 0):
             style_mean, style_std, _ = calc_weighted_mean_std(style_feat,target_mask)
@@ -102,8 +106,8 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
         total_style_mean += style_mean*input_mask
         total_style_var += (style_std**2)*input_mask
 
-        normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
-        total_normalized_feat += normalized_feat*input_mask
+        # normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
+        # total_normalized_feat += normalized_feat*input_mask
 
     total_style_std = torch.sqrt(total_style_var)
     adaIN_feat = total_normalized_feat * total_style_std + total_style_mean
@@ -145,6 +149,9 @@ def adaptive_instance_normalization_saved_stats(content_feat, content_sem, style
     with open(style_stds, "rb") as myFile:
         stds = pickle.load(myFile)
 
+    content_mean, content_std = calc_mean_std(content_feat)
+    total_normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
+
     for class_id in torch.unique(content_sem):
 
         class_id_float = class_id.item()
@@ -160,13 +167,13 @@ def adaptive_instance_normalization_saved_stats(content_feat, content_sem, style
         
         # Calculate content mean and standard deviation for the current class
         input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='bilinear')
-        content_mean, content_std, _ = calc_weighted_mean_std(content_feat, input_mask)
+        # content_mean, content_std, _ = calc_weighted_mean_std(content_feat, input_mask)
 
         total_style_mean += style_mean*input_mask
         total_style_var += (style_std**2)*input_mask
 
-        normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
-        total_normalized_feat += normalized_feat*input_mask
+        # normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
+        # total_normalized_feat += normalized_feat*input_mask
 
     total_style_std = torch.sqrt(total_style_var)
     adaIN_feat = total_normalized_feat * total_style_std + total_style_mean
