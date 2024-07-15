@@ -187,7 +187,7 @@ if args.style_files:
     style_means, style_stds = args.style_files.split(',')
 
 
-decoder = net.Decoder()
+decoder = net.decoder
 vgg = net.vgg
 
 decoder.eval()
