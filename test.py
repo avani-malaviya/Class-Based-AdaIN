@@ -10,6 +10,7 @@ from torchvision import transforms
 from torchvision.utils import save_image
 import numpy as np
 import matplotlib.pyplot as plt
+from diffusers import AutoencoderKL
 
 import net
 from function import coral
@@ -90,10 +91,38 @@ def visualize_feature_maps(content_f, output_f, output_name):
     plt.close(fig)
 
 
+def resize_image(image, target_size=512, method=Image.LANCZOS):
+    return image.resize((target_size, target_size), method)
 
-def style_transfer(adain, vgg, decoder, content, content_sem, style = None, style_sem = None, style_means = None, style_stds = None, alpha=1.0):
+def encode_image(image_path):
+    image = Image.open(image_path).convert("RGB")
+    image = resize_image(image)
+    image = transforms.ToTensor()(image).unsqueeze(0).to(device)
+    image = (image * 2.0) - 1.0
+
+    with torch.no_grad():
+        latent = vae.encode(image).latent_dist.sample()
+    
+    return latent
+
+
+def decode_image(latent, original_size, keep_square=False):
+    with torch.no_grad():
+        image = vae.decode(latent).sample
+
+    image = (image / 2 + 0.5).clamp(0, 1)
+    image = image.cpu().permute(0, 2, 3, 1).numpy()[0]
+    image = (image * 255).round().astype("uint8")
+    image = Image.fromarray(image)
+    
+    if not keep_square:
+        image = image.resize(original_size, Image.LANCZOS)
+    
+    return image
+
+
+def style_transfer(adain, vgg, decoder, content_f, content_sem, style = None, style_sem = None, style_means = None, style_stds = None, alpha=1.0):
     assert (0.0 <= alpha <= 1.0)
-    content_f = vgg(content)
     if ((style_means is not None) and (style_stds is not None)):
         feat = adain(content_f, content_sem, style_means, style_stds)
     elif ((style is not None) and (style_sem is not None)):
@@ -102,7 +131,7 @@ def style_transfer(adain, vgg, decoder, content, content_sem, style = None, styl
     else: 
         print("Incomplete Style Data")
     feat = feat * alpha + content_f * (1 - alpha)
-    return decoder(feat), content_f
+    return feat
 
 
 parser = argparse.ArgumentParser()
@@ -187,18 +216,10 @@ if args.style_files:
     style_means, style_stds = args.style_files.split(',')
 
 
-decoder = net.decoder
-vgg = net.vgg
+vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=torch.float32)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+vae = vae.to(device)
 
-decoder.eval()
-vgg.eval()
-
-decoder.load_state_dict(torch.load(args.decoder))
-vgg.load_state_dict(torch.load(args.vgg))
-vgg = nn.Sequential(*list(vgg.children())[:31])
-
-vgg.to(device)
-decoder.to(device)
 
 content_tf = test_transform(args.content_size, args.crop)
 style_tf = test_transform(args.style_size, args.crop)
@@ -214,10 +235,10 @@ for content_path in content_paths:
         content = content.to(device).unsqueeze(0)
         content_sem = content_sem.to(device).unsqueeze(0)
 
+        content_f = encode_image(content_path)
         with torch.no_grad():
-            output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
-            output_f = vgg(output)
-        output = output.cpu()
+            adain_feat = style_transfer(adain, content_f, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
+        output = decode_image(adain_feat)
 
         output_name = output_dir / '{:s}_stylized{:s}'.format(
             content_path.stem, args.save_ext)
@@ -240,10 +261,10 @@ for content_path in content_paths:
             content_sem = content_sem.to(device).unsqueeze(0)
             style_sem = style_sem.to(device).unsqueeze(0)
 
+            content_f = encode_image(content_path)
             with torch.no_grad():
-                output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style=style, style_sem=style_sem, alpha=args.alpha)
-                output_f = vgg(output)
-            output = output.cpu()
+                adain_feat = style_transfer(adain, content_f, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
+            output = decode_image(adain_feat)
 
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
