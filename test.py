@@ -96,6 +96,7 @@ def resize_image(image, target_size=512, method=Image.LANCZOS):
 
 def encode_image(image_path):
     image = Image.open(image_path).convert("RGB")
+    content_size = image.size
     image = resize_image(image)
     image = transforms.ToTensor()(image).unsqueeze(0).to(device)
     image = (image * 2.0) - 1.0
@@ -103,7 +104,7 @@ def encode_image(image_path):
     with torch.no_grad():
         latent = vae.encode(image).latent_dist.sample()
     
-    return latent
+    return latent, content_size
 
 
 def decode_image(latent, original_size, keep_square=False):
@@ -215,7 +216,7 @@ if args.style_files:
     style_means, style_stds = args.style_files.split(',')
 
 
-vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=torch.float32)
+vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse-original", torch_dtype=torch.float32)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 vae = vae.to(device)
 
@@ -234,14 +235,14 @@ for content_path in content_paths:
         content = content.to(device).unsqueeze(0)
         content_sem = content_sem.to(device).unsqueeze(0)
 
-        content_f = encode_image(content_path)
+        content_f, content_size = encode_image(content_path)
         with torch.no_grad():
             adain_feat = style_transfer(adain, content_f, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
-        output = decode_image(adain_feat)
+        output = decode_image(adain_feat, content_size)
 
         output_name = output_dir / '{:s}_stylized{:s}'.format(
             content_path.stem, args.save_ext)
-        save_image(output, str(output_name))
+        output.save(str(output_name))
 
     else:
         for style_path in style_paths:
@@ -268,5 +269,5 @@ for content_path in content_paths:
 
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
-            save_image(output, str(output_name))
+            output.save(str(output_name))
             #visualize_feature_maps(content_f, output_f, output_name)

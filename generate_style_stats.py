@@ -102,7 +102,7 @@ for style_path in style_paths:
     
     style_f = encode_image(style_path)
 
-    style_sem_resized = F.interpolate(style_sem.unsqueeze(0).unsqueeze(0).float(), 
+    style_sem_resized = F.interpolate(style_sem.unsqueeze(0).float(), 
                                   size=style_f.shape[2:], 
                                   mode='nearest').squeeze(0).squeeze(0)
     
@@ -110,10 +110,9 @@ for style_path in style_paths:
     style_stds[style_path] = {}
     style_Ns[style_path] = {}
     
-    for class_id in torch.unique(style_sem):
-        style_mask = F.interpolate((style_sem == class_id).float(), size=style_f.shape[2:], mode='nearest')
+    for class_id in torch.unique(style_sem_resized):
+        style_mask = (style_sem_resized == class_id).float().unsqueeze(0)
         style_mean, style_std, style_N = calc_weighted_mean_std(style_f, style_mask)
-
         class_id_float = class_id.item()
         style_means[style_path][class_id_float] = style_mean.squeeze().cpu().detach().numpy()
         style_stds[style_path][class_id_float] = style_std.squeeze().cpu().detach().numpy()
