@@ -101,6 +101,10 @@ for style_path in style_paths:
         continue
     
     style_f = encode_image(style_path)
+
+    style_sem_resized = F.interpolate(style_sem.unsqueeze(0).unsqueeze(0).float(), 
+                                  size=style_f.shape[2:], 
+                                  mode='nearest').squeeze(0).squeeze(0)
     
     style_means[style_path] = {}
     style_stds[style_path] = {}
