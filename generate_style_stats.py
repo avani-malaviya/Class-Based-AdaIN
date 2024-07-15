@@ -11,6 +11,7 @@ from function import calc_weighted_mean_std
 import numpy as np
 import pickle
 import json
+from diffusers import AutoencoderKL
 
 
 def mask_transform(size, crop):
@@ -40,6 +41,35 @@ def get_sem_map(img_path, mask_dir):
             return mask_tf(Image.open(str(mask_path)).convert('L'))
     return None
 
+def resize_image(image, target_size=512, method=Image.LANCZOS):
+    return image.resize((target_size, target_size), method)
+
+def encode_image(image_path):
+    image = Image.open(image_path).convert("RGB")
+    image = resize_image(image)
+    image = transforms.ToTensor()(image).unsqueeze(0).to(device)
+    image = (image * 2.0) - 1.0
+
+    with torch.no_grad():
+        latent = vae.encode(image).latent_dist.sample()
+    
+    return latent
+
+
+def decode_image(latent, original_size, keep_square=False):
+    with torch.no_grad():
+        image = vae.decode(latent).sample
+
+    image = (image / 2 + 0.5).clamp(0, 1)
+    image = image.cpu().permute(0, 2, 3, 1).numpy()[0]
+    image = (image * 255).round().astype("uint8")
+    image = Image.fromarray(image)
+    
+    if not keep_square:
+        image = image.resize(original_size, Image.LANCZOS)
+    
+    return image
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--crop', action='store_true', help='do center crop to create squared image')
@@ -48,13 +78,9 @@ parser.add_argument('--style_dir', type=str, required=True, help='Directory path
 parser.add_argument('--style_mask_dir', type=str, required=True, help='Directory path to segmentation Mask of style images')
 args = parser.parse_args()
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-vgg = net.vgg
-vgg.eval()
-vgg.load_state_dict(torch.load(args.vgg))
-vgg = nn.Sequential(*list(vgg.children())[:31])
-vgg.to(device)
+vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=torch.float32)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+vae = vae.to(device)
 
 mask_tf = mask_transform(args.style_size, args.crop)
 style_tf = test_transform(args.style_size, args.crop)
@@ -74,9 +100,7 @@ for style_path in style_paths:
         print(f"No segmentation mask found for {style_path}. Skipping.")
         continue
     
-    style = style.to(device).unsqueeze(0)
-    style_sem = style_sem.to(device).unsqueeze(0)
-    style_f = vgg(style)
+    style_f = encode_image(style_path)
     
     style_means[style_path] = {}
     style_stds[style_path] = {}
@@ -121,7 +145,7 @@ eps = 1e-5
 for style_path, class_means in style_means.items():
     for class_id, mean_value in class_means.items():
         if class_id not in accumulated_means:
-            accumulated_means[class_id] = 0.0 * np.ones(512)
+            accumulated_means[class_id] = 0.0 * np.ones(4)
             total_N[class_id] = 0
         N = style_Ns[style_path][class_id]
         accumulated_means[class_id] += N * mean_value
@@ -140,7 +164,7 @@ total_N = {}
 for style_path, class_stds in style_stds.items():
     for class_id, std_value in class_stds.items():
         if class_id not in accumulated_vars:
-            accumulated_vars[class_id] = 0.0 * np.ones(512)
+            accumulated_vars[class_id] = 0.0 * np.ones(4)
             total_N[class_id] = 0
         N = style_Ns[style_path][class_id]
         mean_value = style_means[style_path][class_id]
