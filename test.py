@@ -216,7 +216,7 @@ if args.style_files:
     style_means, style_stds = args.style_files.split(',')
 
 
-vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse-original", torch_dtype=torch.float32)
+vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-ema", torch_dtype=torch.float32)
 device = "cuda" if torch.cuda.is_available() else "cpu"
 vae = vae.to(device)
 
