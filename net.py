@@ -94,22 +94,6 @@ vgg = nn.Sequential(
 
 
 class Net(nn.Module):
-    # def __init__(self, adain, encoder, decoder):
-    #     super(Net, self).__init__()
-    #     enc_layers = list(encoder.children())
-    #     self.enc_1 = nn.Sequential(*enc_layers[:4])  # input -> relu1_1
-    #     self.enc_2 = nn.Sequential(*enc_layers[4:11])  # relu1_1 -> relu2_1
-    #     self.enc_3 = nn.Sequential(*enc_layers[11:18])  # relu2_1 -> relu3_1
-    #     self.enc_4 = nn.Sequential(*enc_layers[18:31])  # relu3_1 -> relu4_1
-    #     self.decoder = decoder
-    #     self.mse_loss = nn.MSELoss()
-    #     self.adain = adain
-
-    #     # fix the encoder
-    #     for name in ['enc_1', 'enc_2', 'enc_3', 'enc_4']:
-    #         for param in getattr(self, name).parameters():
-    #             param.requires_grad = False
-
     def __init__(self, adain, encoder, decoder):
         super(Net, self).__init__()
         enc_layers = list(encoder.children())
@@ -117,19 +101,11 @@ class Net(nn.Module):
         self.enc_2 = nn.Sequential(*enc_layers[4:11])  # relu1_1 -> relu2_1
         self.enc_3 = nn.Sequential(*enc_layers[11:18])  # relu2_1 -> relu3_1
         self.enc_4 = nn.Sequential(*enc_layers[18:31])  # relu3_1 -> relu4_1
-        
-        # Modify the decoder to accept skip connections
-        self.decoder = nn.ModuleList([
-            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-            nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1),
-            nn.ConvTranspose2d(256, 64, kernel_size=4, stride=2, padding=1),
-            nn.Conv2d(128, 3, kernel_size=3, stride=1, padding=1)
-        ])
-        
+        self.decoder = decoder
         self.mse_loss = nn.MSELoss()
         self.adain = adain
 
-        # Fix the encoder
+        # fix the encoder
         for name in ['enc_1', 'enc_2', 'enc_3', 'enc_4']:
             for param in getattr(self, name).parameters():
                 param.requires_grad = False
@@ -184,24 +160,16 @@ class Net(nn.Module):
     def forward(self, content, style, content_sem, style_sem, alpha=1.0):
         assert 0 <= alpha <= 1
         style_feats = self.encode_with_intermediate(style)
-        content_feats = self.encode_with_intermediate(content)
-        
-        t = self.adain(content_feats[-1], style_feats[-1], content_sem, style_sem)
-        t = alpha * t + (1 - alpha) * content_feats[-1]
+        content_feat = self.encode(content)
+        t = self.adain(content_feat, style_feats[-1], content_sem, style_sem)
+        t = alpha * t + (1 - alpha) * content_feat
 
-        # Decoder with skip connections
-        x = self.decoder[0](t)
-        x = torch.cat([x, content_feats[2]], dim=1)
-        x = self.decoder[1](x)
-        x = torch.cat([x, content_feats[1]], dim=1)
-        x = self.decoder[2](x)
-        x = torch.cat([x, content_feats[0]], dim=1)
-        g_t = self.decoder[3](x)
-
+        g_t = self.decoder(t)
         g_t_feats = self.encode_with_intermediate(g_t)
 
         loss_c = self.calc_content_loss(g_t_feats[-1], t)
-        loss_s = sum(self.calc_style_loss(g_t_feat, style_feat) 
-                     for g_t_feat, style_feat in zip(g_t_feats, style_feats))
+        loss_s = 0
+        for i in range(4):
+            loss_s += self.calc_style_loss(g_t_feats[i], style_feats[i])
         
-        return loss_c, loss_s
+        return loss_c, loss_s 
