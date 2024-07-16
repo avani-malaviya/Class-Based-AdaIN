@@ -91,23 +91,27 @@ def visualize_feature_maps(content_f, output_f, output_name):
     plt.close(fig)
 
 
-def resize_image(image, target_size=512, method=Image.LANCZOS):
-    return image.resize((target_size, target_size), method)
-
 def encode_image(image_path):
     image = Image.open(image_path).convert("RGB")
-    content_size = image.size
-    image = resize_image(image)
+    original_size = image.size
+    
+    # Convert to tensor without resizing
     image = transforms.ToTensor()(image).unsqueeze(0).to(device)
     image = (image * 2.0) - 1.0
+
+    # The VAE expects inputs to be multiples of 8, so we need to pad if necessary
+    h, w = image.shape[2:]
+    pad_h = (8 - h % 8) % 8
+    pad_w = (8 - w % 8) % 8
+    if pad_h > 0 or pad_w > 0:
+        image = torch.nn.functional.pad(image, (0, pad_w, 0, pad_h), mode='constant', value=0)
 
     with torch.no_grad():
         latent = vae.encode(image).latent_dist.sample()
     
-    return latent, content_size
+    return latent, original_size
 
-
-def decode_image(latent, original_size, keep_square=False):
+def decode_image(latent, original_size):
     with torch.no_grad():
         image = vae.decode(latent).sample
 
@@ -116,8 +120,10 @@ def decode_image(latent, original_size, keep_square=False):
     image = (image * 255).round().astype("uint8")
     image = Image.fromarray(image)
     
-    if not keep_square:
-        image = image.resize(original_size, Image.LANCZOS)
+    # Crop the image back to the original size if padding was added
+    current_size = image.size
+    if current_size != original_size:
+        image = image.crop((0, 0, original_size[0], original_size[1]))
     
     return image
 
