@@ -103,8 +103,8 @@ def adaptive_instance_normalization_by_segmentation(content_feat, style_feat, co
         else:
             style_mean, style_std = calc_mean_std(style_feat)
 
-        total_style_mean += style_mean*input_mask
-        total_style_var += (style_std**2)*input_mask
+        total_style_mean += style_mean*input_mask.to(style_mean.device)
+        total_style_var += (style_std**2)*input_mask.to(style_mean.device)
 
         # normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
         # total_normalized_feat += normalized_feat*input_mask
@@ -169,9 +169,10 @@ def adaptive_instance_normalization_saved_stats(content_feat, content_sem, style
         input_mask = F.interpolate((content_sem == class_id).float(), size=size[2:], mode='bilinear')
         # content_mean, content_std, _ = calc_weighted_mean_std(content_feat, input_mask)
 
+        style_mean = style_mean.to(input_mask.device)
+        style_std = style_std.to(input_mask.device)
         total_style_mean += style_mean*input_mask
         total_style_var += (style_std**2)*input_mask
-
         # normalized_feat = (content_feat - content_mean.expand(size)) / content_std.expand(size)
         # total_normalized_feat += normalized_feat*input_mask
 

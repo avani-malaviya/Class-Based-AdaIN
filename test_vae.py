@@ -10,7 +10,7 @@ from torchvision import transforms
 from torchvision.utils import save_image
 import numpy as np
 import matplotlib.pyplot as plt
-from diffusers import AutoencoderKL
+from diffusers import StableDiffusionPipeline
 
 import net
 from function import coral
@@ -216,7 +216,10 @@ if args.style_files:
     style_means, style_stds = args.style_files.split(',')
 
 
-vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=torch.float32)
+model_id = "runwayml/stable-diffusion-v1-5"
+
+pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
+vae = pipe.vae
 device = "cuda" if torch.cuda.is_available() else "cpu"
 vae = vae.to(device)
 

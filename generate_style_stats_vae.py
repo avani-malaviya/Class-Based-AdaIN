@@ -11,7 +11,8 @@ from function import calc_weighted_mean_std
 import numpy as np
 import pickle
 import json
-from diffusers import AutoencoderKL
+from diffusers import StableDiffusionPipeline
+
 
 
 def mask_transform(size, crop):
@@ -78,7 +79,13 @@ parser.add_argument('--style_dir', type=str, required=True, help='Directory path
 parser.add_argument('--style_mask_dir', type=str, required=True, help='Directory path to segmentation Mask of style images')
 args = parser.parse_args()
 
-vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", torch_dtype=torch.float32)
+
+
+model_id = "runwayml/stable-diffusion-v1-5"
+
+pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
+vae = pipe.vae
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 vae = vae.to(device)
 
@@ -111,7 +118,7 @@ for style_path in style_paths:
     style_Ns[style_path] = {}
     
     for class_id in torch.unique(style_sem_resized):
-        style_mask = (style_sem_resized == class_id).float().unsqueeze(0)
+        style_mask = (style_sem_resized == class_id).float().unsqueeze(0).to(device)
         style_mean, style_std, style_N = calc_weighted_mean_std(style_f, style_mask)
         class_id_float = class_id.item()
         style_means[style_path][class_id_float] = style_mean.squeeze().cpu().detach().numpy()

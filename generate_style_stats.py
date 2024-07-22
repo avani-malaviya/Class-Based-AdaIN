@@ -11,6 +11,7 @@ from function import calc_weighted_mean_std
 import numpy as np
 import pickle
 import json
+import matplotlib.pyplot as plt
 
 
 def mask_transform(size, crop):
@@ -133,6 +134,7 @@ for class_id in accumulated_means:
 
 with open("mean_means.txt", "wb") as myFile:
     pickle.dump(accumulated_means, myFile)
+
 
 accumulated_vars = {}
 total_N = {}
