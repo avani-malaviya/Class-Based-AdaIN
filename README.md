@@ -2,6 +2,20 @@ This is an implementation of my work on Class-Based Adaptive Instance Normalizat
 
 The code in this repository builds on the [Unofficial Pytorch Implementation of AdaIN](https://github.com/naoto0804/pytorch-AdaIN.git) by [Naoto Inoue](https://github.com/naoto0804). I am sincerely grateful for the unofficial implementation as well as the [Original Implementation in Torch](https://github.com/xunhuang1995/AdaIN-style.git) by the authors of Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization [Huang+, ICCV2017].
 
+## Table of Contents
+
+1. [Class-Based AdaIN](#class-based-adain)
+2. [Requirements](#requirements)
+3. [Project Structure](#project-structure)
+4. [Image Naming Convention](#image-naming-convention)
+5. [Usage](#usage)
+   - [Download & Organize Data](#download--organize-data)
+   - [Download Models](#download-models)
+   - [Test](#test)
+   - [Train](#train)
+6. [References](#references)
+
+
 # Class-Based AdaIN
 This work presents Class-Based Adaptive Instance Normalization (CB-AdaIN), as an approach to style transfer for domain adaptation in urban scene segmentation. We address limitations of standard AdaIN when applied to complex urban scenes by incorporating class-specific style statistics. Our method computes style statistics across multiple reference images for each semantic class, allowing for more contextually appropriate style transfer. We demonstrate CB-AdaIN's effectiveness using both a custom encoder-decoder architecture and a pre-trained Stable Diffusion VAE. Our results, show improved color adaptation and reduced artifacts compared to standard AdaIN. While the proposed method has visible limitations in generating realistic images, with improvements to the decoder architecture, CB-AdaIN shows potential to be used effectively for style transfer in urban scenes.
 
@@ -11,6 +25,48 @@ Please install requirements by `pip install -r requirements_pip.txt`.
 Alternatively, if you are using a conda environment, install requirements by `conda create --name <env> --file requirements_conda.txt`. 
 
 This implementation uses Python 3.9 and Cuda 11.8. 
+
+## Project Structure
+
+The project is organized as follows:
+
+- `input/`: Contains all input data
+  - `content/`: Content images and labels
+    - `GTA/`: GTA5 dataset
+      - `images/`: GTA5 images
+        - `train/`: Training images
+        - `test/`: Test images
+      - `labels_original/`: Original RGB segmentation maps
+      - `labels/`: Processed grayscale labels with Cityscapes IDs
+  - `style/`: Style images and labels
+    - `Cityscapes/`: Cityscapes dataset
+      - `images/`: Cityscapes images
+        - `train/`: Training images
+        - `test/`: Test images
+      - `labels_original/`: Original RGB segmentation maps
+      - `labels/`: Processed grayscale labels with Cityscapes IDs
+- `models/`: Contains model architectures
+- `utils/`: Utility scripts including data preprocessing
+- `experiments/`: Saved decoder checkpoints from training
+- `output/`: Saved output images from tests
+- `test.py`: Script for running inference
+- `train.py`: Script for training the model
+- `generate_style_stats.py`: Script for generating style statistics
+
+## Image Naming Convention
+
+It's important to maintain a consistent naming convention for your images and their corresponding label files. Please adhere to the following convention:
+
+1. Content images (GTA5): `[image_id].png`
+   Example: `00001.png`
+2. Content labels: `[image_id]_gtFine_labelIds.png`
+   Example: `00001_gtFine_labelIds.png`
+3. Style images (Cityscapes): `[city]_[street]_[frame_id].png`
+   Example: `berlin_000000_000019.png`
+4. Style labels: `[city]_[street]_[frame_id]_gtFine_labelIds.png`
+   Example: `berlin_000000_000019_gtFine_labelIds.png`
+
+Ensure that each image file has a corresponding label file with the same base name, only differing by the added `_gtFine_labelIds.png` suffix for label files.
 
 ## Usage
 ### Download & Organize Data
