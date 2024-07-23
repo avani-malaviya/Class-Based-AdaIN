@@ -1,3 +1,5 @@
+*.json
+multi_ref_*
 *.pth
 *.t7
 output/*

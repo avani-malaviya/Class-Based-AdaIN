@@ -4,7 +4,6 @@ import re
 
 import torch
 import torch.nn as nn
-from torchvision.transforms import Resize
 from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image

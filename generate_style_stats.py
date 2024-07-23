@@ -11,7 +11,6 @@ from function import calc_weighted_mean_std
 import numpy as np
 import pickle
 import json
-import matplotlib.pyplot as plt
 
 
 def mask_transform(size, crop):
@@ -97,7 +96,7 @@ serializable_style_stds = {}
 serializable_style_Ns = {}
 
 for style_path in style_means:
-    str_style_path = str(style_path)  # Convert PosixPath to string
+    str_style_path = str(style_path) 
     serializable_style_means[str_style_path] = {}
     serializable_style_stds[str_style_path] = {}
     serializable_style_Ns[str_style_path] = {}
@@ -106,7 +105,7 @@ for style_path in style_means:
         serializable_style_stds[str_style_path][class_id] = style_stds[style_path][class_id].tolist()
         serializable_style_Ns[str_style_path][class_id] = style_Ns[style_path][class_id].tolist()
 
-# Save the dictionaries as JSON files
+
 with open('style_means.json', 'w') as f:
     json.dump(serializable_style_means, f)
 
@@ -132,7 +131,7 @@ for class_id in accumulated_means:
     total_N[class_id] += eps
     accumulated_means[class_id] /= total_N[class_id]
 
-with open("mean_means.txt", "wb") as myFile:
+with open("multi_ref_means.txt", "wb") as myFile:
     pickle.dump(accumulated_means, myFile)
 
 
@@ -156,7 +155,7 @@ for class_id in accumulated_vars:
     accumulated_vars[class_id] /= (total_N[class_id] - 1)
     accumulated_stds[class_id] = np.sqrt(accumulated_vars[class_id])
 
-with open("mean_stds.txt", "wb") as myFile:
+with open("multi_ref_stds.txt", "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
 
 
