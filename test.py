@@ -8,7 +8,7 @@ from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
 import matplotlib.pyplot as plt
-
+from diffusers import StableDiffusionPipeline
 import net
 
 
@@ -50,18 +50,49 @@ def mask_transform(size, crop):
     return transform
 
 
-def style_transfer(adain, vgg, decoder, content, content_sem, style = None, style_sem = None, style_means = None, style_stds = None, alpha=1.0):
+
+def resize_image_sdvae(image, target_size=512, method=Image.LANCZOS):
+    return image.resize((target_size, target_size), method)
+
+def encode_image_sdvae(image_path):
+    image = Image.open(image_path).convert("RGB")
+    content_size = image.size
+    image = resize_image_sdvae(image)
+    image = transforms.ToTensor()(image).unsqueeze(0).to(device)
+    image = (image * 2.0) - 1.0
+
+    with torch.no_grad():
+        latent = vae.encode(image).latent_dist.sample()
+    
+    return latent, content_size
+
+
+def decode_image_sdvae(latent, original_size, keep_square=False):
+    with torch.no_grad():
+        image = vae.decode(latent).sample
+
+    image = (image / 2 + 0.5).clamp(0, 1)
+    image = image.cpu().permute(0, 2, 3, 1).numpy()[0]
+    image = (image * 255).round().astype("uint8")
+    image = Image.fromarray(image)
+    
+    if not keep_square:
+        image = image.resize(original_size, Image.LANCZOS)
+    
+    return image
+
+
+def style_transfer(adain, content_f, content_sem, style_f = None, style_sem = None, style_means = None, style_stds = None, alpha=1.0):
     assert (0.0 <= alpha <= 1.0)
-    content_f = vgg(content)
     if ((style_means is not None) and (style_stds is not None)):
         feat = adain(content_f, content_sem, style_means, style_stds)
-    elif ((style is not None) and (style_sem is not None)):
-        style_f = vgg(style)
+    elif ((style_f is not None) and (style_sem is not None)):
         feat = adain(content_f, style_f, content_sem, style_sem)
     else: 
         print("Incomplete Style Data")
     feat = feat * alpha + content_f * (1 - alpha)
     return decoder(feat), content_f
+
 
 
 parser = argparse.ArgumentParser()
@@ -82,6 +113,7 @@ parser.add_argument('--content_mask_dir',type=str, required=True,
                     help='Directory path to segmantation Mask of content images')
 parser.add_argument('--style_mask_dir',type=str, 
                     help='Directory path to segmantation Mask of style images')
+parser.add_argument('--architecture', type=str, default='encoder-decoder', help='Type of encoder-decoder architecture used')
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
 parser.add_argument('--adain_method', type=str, required=True)
@@ -142,18 +174,26 @@ else:
     style_means, style_stds = args.style_files.split(',')
 
 
-decoder = net.decoder
-vgg = net.vgg
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-decoder.eval()
-vgg.eval()
+if args.architecture == 'encoder-decoder':
+    decoder = net.decoder
+    vgg = net.vgg
+    decoder.eval()
+    vgg.eval()
+    decoder.load_state_dict(torch.load(args.decoder))
+    vgg.load_state_dict(torch.load(args.vgg))
+    vgg = nn.Sequential(*list(vgg.children())[:31])
+    vgg.to(device)
+    decoder.to(device)
+elif args.architecture == 'sd-vae':
+    model_id = "runwayml/stable-diffusion-v1-5"
+    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
+    vae = pipe.vae
+    vae = vae.to(device)
+else: 
+    print("invalid architecture")
 
-decoder.load_state_dict(torch.load(args.decoder))
-vgg.load_state_dict(torch.load(args.vgg))
-vgg = nn.Sequential(*list(vgg.children())[:31])
-
-vgg.to(device)
-decoder.to(device)
 
 content_tf = test_transform(args.content_size, args.crop)
 style_tf = test_transform(args.style_size, args.crop)
@@ -169,10 +209,19 @@ for content_path in content_paths:
         content = content.to(device).unsqueeze(0)
         content_sem = content_sem.to(device).unsqueeze(0)
 
+        if args.architecture == 'encoder-decoder':
+            content_f = vgg(content)
+        elif args.architecture == 'sd-vae':
+            content_f, content_size = encode_image_sdvae(content_path)
+
         with torch.no_grad():
-            output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
-            output_f = vgg(output)
-        output = output.cpu()
+            adain_feat = style_transfer(adain, content_f, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
+        
+        if args.architecture == 'encoder-decoder':
+            output = decoder(adain_feat)
+            output = output.cpu()
+        elif args.architecture == 'sd-vae':
+            output = decode_image_sdvae(adain_feat, content_size)
 
         output_name = output_dir / '{:s}_stylized{:s}'.format(
             content_path.stem, args.save_ext)
@@ -192,10 +241,19 @@ for content_path in content_paths:
             content_sem = content_sem.to(device).unsqueeze(0)
             style_sem = style_sem.to(device).unsqueeze(0)
 
+            if args.architecture == 'encoder-decoder':
+                content_f = vgg(content)
+            elif args.architecture == 'sd-vae':
+                content_f, content_size = encode_image_sdvae(content_path)
+
             with torch.no_grad():
-                output, content_f = style_transfer(adain, vgg, decoder, content, content_sem, style=style, style_sem=style_sem, alpha=args.alpha)
-                output_f = vgg(output)
-            output = output.cpu()
+                adain_feat = style_transfer(adain, vgg, decoder, content, content_sem, style=style, style_sem=style_sem, alpha=args.alpha)
+            
+            if args.architecture == 'encoder-decoder':
+                output = decoder(adain_feat)
+                output = output.cpu()
+            elif args.architecture == 'sd-vae':
+                output = decode_image_sdvae(adain_feat, content_size)
 
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
