@@ -137,3 +137,11 @@ For more details and parameters, please refer to --help option.
 - [3]: [Original implementation in Torch](https://github.com/xunhuang1995/AdaIN-style)
 - [4]: M. Cordts, M. Omran, S. Ramos, T. Rehfeld, M. Enzweiler, R. Benenson, U. Franke, S. Roth, and B. Schiele. "The Cityscapes Dataset for Semantic Urban Scene Understanding." in CVPR, 2016.
 - [5]: S. R. Richter*, V. Vineet*, S. Roth, and V. Koltun. "Playing for Data: Ground Truth from Computer Games." in ECCV, 2016. (*equal contribution)
+
+## License
+
+This project is based on the [Unofficial Pytorch Implementation of AdaIN](https://github.com/naoto0804/pytorch-AdaIN.git) by Naoto Inoue, which is licensed under the MIT License.
+
+The modifications and additions made for Class-Based AdaIN are also released under the MIT License.
+
+See the [LICENSE](./LICENSE) file for full details.
