@@ -217,8 +217,8 @@ for content_path in content_paths:
         with torch.no_grad():
             adain_feat = style_transfer(adain, content_f, content_sem, style_means=style_means, style_stds=style_stds, alpha=args.alpha)
         
-        output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
-                content_path.stem, style_path.stem, args.save_ext)
+        output_name = output_dir / '{:s}_stylized{:s}'.format(
+                content_path.stem, args.save_ext)
 
         if args.architecture == 'encoder-decoder':
             output = decoder(adain_feat)
