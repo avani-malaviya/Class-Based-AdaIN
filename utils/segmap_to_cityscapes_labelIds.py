@@ -82,10 +82,10 @@ def process_directory(input_dir, output_dir):
 
 
 # Usage
-input_directory = 'input/content/Cityscapes/labels_original/'
-output_directory = 'input/content/Cityscapes/labels/'
+input_directory = 'input/style/Cityscapes/labels_original/'
+output_directory = 'input/style/Cityscapes/labels/'
 process_directory(input_directory, output_directory)
 
-input_directory = 'input/style/GTA/labels_original/'
-output_directory = 'input/style/GTA/labels/'
+input_directory = 'input/content/GTA/labels_original/'
+output_directory = 'input/content/GTA/labels/'
 process_directory(input_directory, output_directory)
