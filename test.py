@@ -91,7 +91,7 @@ def style_transfer(adain, content_f, content_sem, style_f = None, style_sem = No
     else: 
         print("Incomplete Style Data")
     feat = feat * alpha + content_f * (1 - alpha)
-    return decoder(feat), content_f
+    return feat
 
 
 
