@@ -85,3 +85,7 @@ def process_directory(input_dir, output_dir):
 input_directory = 'input/content/Cityscapes/labels_original/'
 output_directory = 'input/content/Cityscapes/labels/'
 process_directory(input_directory, output_directory)
+
+input_directory = 'input/style/GTA/labels_original/'
+output_directory = 'input/style/GTA/labels/'
+process_directory(input_directory, output_directory)
