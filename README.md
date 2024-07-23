@@ -1,9 +1,8 @@
-# pytorch-AdaIN
+# Class-Based AdaIN
 
-This is an unofficial pytorch implementation of a paper, Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization [Huang+, ICCV2017].
-I'm really grateful to the [original implementation](https://github.com/xunhuang1995/AdaIN-style) in Torch by the authors, which is very useful.
+This is an implementation of my work on Class-Based Adaptive Instance Normalization. This work was done as an internship project at The Complex Systems Engineering Department (DISC) of ISAE-SUPAERO under the supervision of Dr. Thomas Oberlin. 
 
-![Results](results.png)
+The code in this repository builds on the [Unofficial Pytorch Implementation of AdaIN](https://github.com/naoto0804/pytorch-AdaIN.git) by [Naoto Inoue](https://github.com/naoto0804). I am sincerely grateful for the unofficial implementation as well as the [Original Implementation in Torch](https://github.com/xunhuang1995/AdaIN-style.git) by the authors of Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization [Huang+, ICCV2017].
 
 ## Requirements
 Please install requirements by `pip install -r requirements.txt`
@@ -57,5 +56,6 @@ I share the model trained by this code as `iter_1000000.pth
 ` at [release](https://github.com/naoto0804/pytorch-AdaIN/releases/tag/v0.0.0).
 
 ## References
-- [1]: X. Huang and S. Belongie. "Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization.", in ICCV, 2017.
-- [2]: [Original implementation in Torch](https://github.com/xunhuang1995/AdaIN-style)
+- [1]: [Unofficial Pytorch Implementation of AdaIN](https://github.com/naoto0804/pytorch-AdaIN.git) by [Naoto Inoue](https://github.com/naoto0804)
+- [2]: X. Huang and S. Belongie. "Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization.", in ICCV, 2017.
+- [3]: [Original implementation in Torch](https://github.com/xunhuang1995/AdaIN-style)
