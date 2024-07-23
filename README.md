@@ -20,7 +20,9 @@ This implementation uses Python 3.9 and Cuda 11.8.
 4. Run the [script](./utils/segmap_to_cityscapes_labelIds.py) as `python /utils/segmap_to_cityscapes_labelIds.py`. The grayscale images with Cityscapes label Ids will be saved under `input/content/GTA/labels/` and `input/style/Cityscapes/labels/` respectively.
 
 ### Download models
+The trained decoder can be found [here](https://drive.google.com/file/d/1xoYKg3IggCzxvewTTGBfIsEOombVHlHp/view?usp=sharing). 
 
+The trained encoder can be downloaded from the [Unofficial Pytorch Implementation of AdaIN](https://github.com/naoto0804/pytorch-AdaIN.git)
 
 ### Test
 - To provide the content, either `--content` or `--content_dir` options can be used to provide the path to a single content image or a directory.
