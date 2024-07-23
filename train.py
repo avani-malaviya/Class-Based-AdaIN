@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.utils.data as data
 import numpy as np
 from PIL import Image, ImageFile
-from tensorboardX import SummaryWriter
 from torchvision import transforms
 from tqdm import tqdm
 
@@ -17,8 +16,7 @@ import net
 from sampler import InfiniteSamplerWrapper
 
 cudnn.benchmark = True
-Image.MAX_IMAGE_PIXELS = None  # Disable DecompressionBombError
-# Disable OSError: image file is truncated
+Image.MAX_IMAGE_PIXELS = None 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -29,6 +27,7 @@ def train_transform():
         transforms.ToTensor()
     ]
     return transforms.Compose(transform_list)
+
 
 class FlatFolderDataset(data.Dataset):
     def __init__(self, root, mask_root, transform):
@@ -44,7 +43,6 @@ class FlatFolderDataset(data.Dataset):
         img = Image.open(str(path)).convert('RGB')
         img = self.transform(img)
 
-        # Extract the base name and replace the suffix
         match = re.match(r'(.*)\.png$', path.name)
         if match:
             base_name = match.group(1)
@@ -80,10 +78,14 @@ parser.add_argument('--content_dir', type=str, required=True,
                     help='Directory path to a batch of content images')
 parser.add_argument('--style_dir', type=str, required=True,
                     help='Directory path to a batch of style images')
+parser.add_argument('--content_mask_dir',type=str, required=True, 
+                    help='Directory path to segmantation Mask of content images')
+parser.add_argument('--style_mask_dir',type=str, required=True, 
+                    help='Directory path to segmantation Mask of style images')
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth',
                     help='Path to the pretrained decoder model')
-parser.add_argument('--with_segmentation', type=bool, required=True)
+parser.add_argument('--with_segmentation', type=str, required=True)
 
 # training options
 parser.add_argument('--save_dir', default='./experiments',
@@ -96,26 +98,23 @@ parser.add_argument('--max_iter', type=int, default=200000)
 parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--style_weight', type=float, default=1.0)
 parser.add_argument('--content_weight', type=float, default=10.0)
-#parser.add_argument('--reg_weight', type=float, default=1000.0)
 parser.add_argument('--n_threads', type=int, default=16)
 parser.add_argument('--save_model_interval', type=int, default=1000)
-parser.add_argument('--content_mask_dir',type=str, required=True, 
-                    help='Directory path to segmantation Mask of content images')
-parser.add_argument('--style_mask_dir',type=str, required=True, 
-                    help='Directory path to segmantation Mask of style images')
 args = parser.parse_args()
 
-if args.with_segmentation:
+
+if args.with_segmentation=="True":
     from function import adaptive_instance_normalization_by_segmentation as adain
 else:
     from function import adaptive_instance_normalization as adain
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 save_dir = Path(args.save_dir)
 save_dir.mkdir(exist_ok=True, parents=True)
 log_dir = Path(args.log_dir)
 log_dir.mkdir(exist_ok=True, parents=True)
-writer = SummaryWriter(log_dir=str(log_dir))
+
 
 wandb.init(project="Sim2Real_AdaIN", config={
     "content_dir": args.content_dir,
@@ -129,7 +128,6 @@ wandb.init(project="Sim2Real_AdaIN", config={
     "batch_size": args.batch_size,
     "style_weight": args.style_weight,
     "content_weight": args.content_weight,
-#    "regularization_weight": args.reg_weight,
     "n_threads": args.n_threads,
     "save_model_interval": args.save_model_interval
 })
@@ -139,9 +137,9 @@ try:
     decoder.load_state_dict(torch.load(args.decoder))
 except RuntimeError:
     print("Unable to load the old decoder state. Initializing with random weights.")
-    # Optionally, you can implement a weight transfer method here if needed
-vgg = net.vgg
 
+
+vgg = net.vgg
 vgg.load_state_dict(torch.load(args.vgg))
 vgg = nn.Sequential(*list(vgg.children())[:31])
 network = net.Net(adain, vgg, decoder)
@@ -178,8 +176,7 @@ for i in tqdm(range(args.max_iter)):
     loss_c, loss_s = network(content_images, style_images, content_mask, style_mask)
     loss_c = args.content_weight * loss_c
     loss_s = args.style_weight * loss_s
-#    loss_m = args.reg_weight * loss_m
-    loss = loss_c + loss_s # + loss_m
+    loss = loss_c + loss_s
 
     optimizer.zero_grad()
     loss.backward()

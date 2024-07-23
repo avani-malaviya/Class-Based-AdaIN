@@ -7,11 +7,9 @@ import torch.nn as nn
 from PIL import Image
 from torchvision import transforms
 from torchvision.utils import save_image
-import numpy as np
 import matplotlib.pyplot as plt
 
 import net
-from function import coral
 
 
 def get_sem_map(img_path, mask_dir):
@@ -29,6 +27,7 @@ def get_sem_map(img_path, mask_dir):
 
     return sem_map
 
+
 def test_transform(size, crop):
     transform_list = []
     if size != 0:
@@ -39,6 +38,7 @@ def test_transform(size, crop):
     transform = transforms.Compose(transform_list)
     return transform
 
+
 def mask_transform(size, crop):
     transform_list = []
     if size != 0:
@@ -48,46 +48,6 @@ def mask_transform(size, crop):
     transform_list.append(transforms.ToTensor())
     transform = transforms.Compose(transform_list)
     return transform
-
-def visualize_feature_maps(content_f, output_f, output_name):
-    # Ensure the tensors are on CPU and detached from the computation graph
-    content_f = content_f.cpu().detach()
-    output_f = output_f.cpu().detach()
-
-    # Normalize feature maps
-    content_f = (content_f - content_f.min()) / (content_f.max() - content_f.min())
-    output_f = (output_f - output_f.min()) / (output_f.max() - output_f.min())
-    
-    # Create a grid of feature maps
-    num_features = content_f.size(1)
-    grid_size = int(np.ceil(np.sqrt(num_features)))
-    
-    # Create a large figure to hold all feature maps
-    fig, axs = plt.subplots(2, grid_size, figsize=(grid_size*2, 4), dpi=750)
-    fig.subplots_adjust(hspace=0.1, wspace=0.1)
-
-    for i in range(num_features):
-        row = i // grid_size
-        col = i % grid_size
-        
-        # Content feature map
-        axs[0, col].imshow(content_f[0, i].numpy(), cmap='gray')
-        axs[0, col].axis('off')
-        
-        # Output feature map
-        axs[1, col].imshow(output_f[0, i].numpy(), cmap='gray')
-        axs[1, col].axis('off')
-
-    # Remove any unused subplots
-    for i in range(num_features, grid_size):
-        axs[0, i].axis('off')
-        axs[1, i].axis('off')
-
-    # Save the figure
-    plt.savefig(str(output_name.with_stem(output_name.stem + '_feature_maps')), 
-                dpi=300, bbox_inches='tight', pad_inches=0.1)
-    plt.close(fig)
-
 
 
 def style_transfer(adain, vgg, decoder, content, content_sem, style = None, style_sem = None, style_means = None, style_stds = None, alpha=1.0):
@@ -118,6 +78,10 @@ parser.add_argument('--style_dir', type=str,
                     help='Directory path to a batch of style images')
 parser.add_argument('--style_files', type=str,
                     help='Comma separated paths to .txt files containing class based style means and stds respectively')
+parser.add_argument('--content_mask_dir',type=str, required=True, 
+                    help='Directory path to segmantation Mask of content images')
+parser.add_argument('--style_mask_dir',type=str, 
+                    help='Directory path to segmantation Mask of style images')
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
 parser.add_argument('--adain_method', type=str, required=True)
@@ -138,18 +102,10 @@ parser.add_argument('--output', type=str, default='output',
                     help='Directory to save the output image(s)')
 
 # Advanced options
-parser.add_argument('--preserve_color', action='store_true',
-                    help='If specified, preserve color of the content image')
 parser.add_argument('--alpha', type=float, default=1.0,
                     help='The weight that controls the degree of \
                              stylization. Should be between 0 and 1')
-parser.add_argument(
-    '--style_interpolation_weights', type=str, default='',
-    help='The weight for blending the style of multiple style images')
-parser.add_argument('--content_mask_dir',type=str, required=True, 
-                    help='Directory path to segmantation Mask of content images')
-parser.add_argument('--style_mask_dir',type=str, 
-                    help='Directory path to segmantation Mask of style images')
+
 
 args = parser.parse_args()
 
@@ -160,7 +116,6 @@ elif (args.adain_method=="with_segmentation"):
 else:
     from function import adaptive_instance_normalization as adain
 
-do_interpolation = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -175,14 +130,15 @@ else:
     content_dir = Path(args.content_dir)
     content_paths = [f for f in content_dir.glob('*')]
 
-# Either --style or --styleDir should be given.
+
+# Either --style or --styleDir or --style_files should be given.
 assert (args.style or args.style_dir or args.style_files) 
 if args.style:
     style_paths = [Path(args.style)]
-else:
+elif args.style_dir:
     style_dir = Path(args.style_dir)
     style_paths = [f for f in style_dir.glob('*')]
-if args.style_files:
+else:
     style_means, style_stds = args.style_files.split(',')
 
 
@@ -230,9 +186,6 @@ for content_path in content_paths:
             content_sem = get_sem_map(content_path,args.content_mask_dir)
             style_sem = get_sem_map(style_path,args.style_mask_dir)
             
-            if args.preserve_color:
-                style = coral(style, content)
-            
             style = style.to(device).unsqueeze(0)
             content = content.to(device).unsqueeze(0)
 
@@ -247,4 +200,3 @@ for content_path in content_paths:
             output_name = output_dir / '{:s}_stylized_{:s}{:s}'.format(
                 content_path.stem, style_path.stem, args.save_ext)
             save_image(output, str(output_name))
-            #visualize_feature_maps(content_f, output_f, output_name)
