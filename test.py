@@ -116,7 +116,6 @@ parser.add_argument('--style_mask_dir',type=str,
 parser.add_argument('--architecture', type=str, default='encoder-decoder', help='Type of encoder-decoder architecture used')
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth')
-parser.add_argument('--adain_method', type=str, required=True)
 
 
 # Additional options
@@ -141,12 +140,10 @@ parser.add_argument('--alpha', type=float, default=1.0,
 
 args = parser.parse_args()
 
-if (args.adain_method=="saved_stats"):
+if args.style_files:
     from function import adaptive_instance_normalization_saved_stats as adain
-elif (args.adain_method=="with_segmentation"):
-    from function import adaptive_instance_normalization_by_segmentation as adain
 else:
-    from function import adaptive_instance_normalization as adain
+    from function import adaptive_instance_normalization_by_segmentation as adain
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -203,7 +200,7 @@ style_mask_tf = mask_transform(args.style_size, args.crop)
 
 for content_path in content_paths:
     
-    if args.adain_method=="saved_stats":
+    if args.style_files:
         content = content_tf(Image.open(str(content_path)))
         content_sem = get_sem_map(content_path,args.content_mask_dir)
         content = content.to(device).unsqueeze(0)
