@@ -85,7 +85,6 @@ parser.add_argument('--style_mask_dir',type=str, required=True,
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth',
                     help='Path to the pretrained decoder model')
-parser.add_argument('--with_segmentation', type=str, required=True)
 
 # training options
 parser.add_argument('--save_dir', default='./experiments',
@@ -102,11 +101,7 @@ parser.add_argument('--n_threads', type=int, default=16)
 parser.add_argument('--save_model_interval', type=int, default=1000)
 args = parser.parse_args()
 
-
-if args.with_segmentation=="True":
-    from function import adaptive_instance_normalization_by_segmentation as adain
-else:
-    from function import adaptive_instance_normalization as adain
+from function import adaptive_instance_normalization_by_segmentation as adain
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
