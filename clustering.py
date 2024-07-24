@@ -129,7 +129,7 @@ def visualize_clusters(clustered_data, class_id, n_clusters, output_dir):
             axes = axes.reshape(1, -1)
 
         for i, path in enumerate(paths):
-            style_sem = get_sem_map(path, 'input/style/cityscapes/labels/')
+            style_sem = get_sem_map(Path(path), 'input/style/cityscapes/labels/')
             mask = (style_sem == class_id).float()
             img = Image.open(path)*mask
             ax = axes[i // grid_size, i % grid_size]
