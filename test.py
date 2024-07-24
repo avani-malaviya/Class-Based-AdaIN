@@ -127,7 +127,7 @@ parser.add_argument('--style_size', type=int, default=512,
                     keeping the original size if set to 0')
 parser.add_argument('--crop', action='store_true',
                     help='do center crop to create squared image')
-parser.add_argument('--save_ext', default='.jpg',
+parser.add_argument('--save_ext', default='.png',
                     help='The extension name of the output image')
 parser.add_argument('--output', type=str, default='output',
                     help='Directory to save the output image(s)')

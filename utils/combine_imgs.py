@@ -27,7 +27,7 @@ def combine_images(dir_content, dir_style, dir_stylized, output_dir):
             img_combined = cv2.hconcat([img_content, img_stylized])
             
             # Save the combined image
-            combined_filename = os.path.join(output_dir, f"{imgname}_combined.jpg")
+            combined_filename = os.path.join(output_dir, f"{imgname}_combined.png")
             cv2.imwrite(combined_filename, img_combined)
             print(f"Combined image saved as {combined_filename}")
         else:
@@ -46,7 +46,7 @@ def combine_images(dir_content, dir_style, dir_stylized, output_dir):
             img_combined = cv2.hconcat([img_content, img_style, img_stylized])
             
             # Save the combined image
-            combined_filename = os.path.join(output_dir, f"{base_content}_{base_style}_combined.jpg")
+            combined_filename = os.path.join(output_dir, f"{base_content}_{base_style}_combined.png")
             cv2.imwrite(combined_filename, img_combined)
             print(f"Combined image saved as {combined_filename}")
 
