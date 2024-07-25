@@ -54,15 +54,23 @@ def encode_image_sdvae(image_path):
     return latent
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
-parser.add_argument('--crop', action='store_true', help='do center crop to create squared image')
+parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth', help='Path to VGG model')
+parser.add_argument('--crop', action='store_true', help='Do center crop to create squared image')
 parser.add_argument('--style_size', type=int, default=512, help='New (minimum) size for the style image, keeping the original size if set to 0')
-parser.add_argument('--style_dir', type=str, required=True, help='Directory path to a batch of style images')
-parser.add_argument('--style_mask_dir', type=str, required=True, help='Directory path to segmentation Mask of style images')
-parser.add_argument('--architecture', type=str, default='encoder-decoder', help='Type of encoder-decoder architecture used')
+parser.add_argument('--style_dir', type=str, default='input/style/cityscapes/images/test/', help='Directory path to a batch of style images')
+parser.add_argument('--style_mask_dir', type=str, default='input/style/cityscapes/labels/', help='Directory path to segmentation Mask of style images')
+parser.add_argument('--architecture', type=str, default='encoder-decoder', choices=['encoder-decoder', 'sd-vae'], help='Type of encoder-decoder architecture used')
+parser.add_argument('--output_dir', type=str, default='./', help='Output directory for JSON and pickle files')
+parser.add_argument('--sd_model_id', type=str, default="runwayml/stable-diffusion-v1-5", help='Stable Diffusion model ID')
+parser.add_argument('--style_means_file', type=str, default='style_means.json', help='Output filename for style means')
+parser.add_argument('--style_stds_file', type=str, default='style_stds.json', help='Output filename for style standard deviations')
+parser.add_argument('--style_Ns_file', type=str, default='style_Ns.json', help='Output filename for style Ns')
+parser.add_argument('--multi_ref_means_file', type=str, default='multi_ref_means.pkl', help='Output filename for multi-reference means')
+parser.add_argument('--multi_ref_stds_file', type=str, default='multi_ref_stds.pkl', help='Output filename for multi-reference standard deviations')
 args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 if args.architecture == 'encoder-decoder':
     vgg = net.vgg
@@ -71,13 +79,11 @@ if args.architecture == 'encoder-decoder':
     vgg = nn.Sequential(*list(vgg.children())[:31])
     vgg.to(device)
 elif args.architecture == 'sd-vae':
-    model_id = "runwayml/stable-diffusion-v1-5"
-    pipe = StableDiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.float32)
+    pipe = StableDiffusionPipeline.from_pretrained(args.sd_model_id, torch_dtype=torch.float32)
     vae = pipe.vae
     vae = vae.to(device)
 else: 
-    print("invalid architecture")
-
+    raise ValueError("Invalid architecture")
 
 mask_tf = mask_transform(args.style_size, args.crop)
 style_tf = test_transform(args.style_size, args.crop)
@@ -95,12 +101,8 @@ for style_path in style_paths:
         style = style.to(device).unsqueeze(0)
         style_f = vgg(style)
     elif args.architecture == 'sd-vae':
-        style = style_tf(Image.open(str(style_path)))
         style_f = encode_image_sdvae(style_path)
-    else: 
-        print("invalid architecture")
-   
-
+    
     style_sem = get_sem_map(style_path, args.style_mask_dir)
     if style_sem is None:
         print(f"No segmentation mask found for {style_path}. Skipping.")
@@ -119,38 +121,20 @@ for style_path in style_paths:
         style_stds[style_path][class_id_float] = style_std.squeeze().cpu().detach().numpy()
         style_Ns[style_path][class_id_float] = style_N.squeeze().cpu().detach().numpy()
 
-serializable_style_means = {}
-serializable_style_stds = {}
-serializable_style_Ns = {}
+serializable_style_means = {str(k): {str(c): v.tolist() for c, v in v.items()} for k, v in style_means.items()}
+serializable_style_stds = {str(k): {str(c): v.tolist() for c, v in v.items()} for k, v in style_stds.items()}
+serializable_style_Ns = {str(k): {str(c): v.tolist() for c, v in v.items()} for k, v in style_Ns.items()}
 
-for style_path in style_means:
-    str_style_path = str(style_path) 
-    serializable_style_means[str_style_path] = {}
-    serializable_style_stds[str_style_path] = {}
-    serializable_style_Ns[str_style_path] = {}
-    for class_id in style_means[style_path]:
-        serializable_style_means[str_style_path][class_id] = style_means[style_path][class_id].tolist()
-        serializable_style_stds[str_style_path][class_id] = style_stds[style_path][class_id].tolist()
-        serializable_style_Ns[str_style_path][class_id] = style_Ns[style_path][class_id].tolist()
-
-
-with open('style_means.json', 'w') as f:
+with open(Path(args.output_dir) / args.style_means_file, 'w') as f:
     json.dump(serializable_style_means, f)
 
-with open('style_stds.json', 'w') as f:
+with open(Path(args.output_dir) / args.style_stds_file, 'w') as f:
     json.dump(serializable_style_stds, f)
 
-with open('style_Ns.json', 'w') as f:
+with open(Path(args.output_dir) / args.style_Ns_file, 'w') as f:
     json.dump(serializable_style_Ns, f)
 
-
-if args.architecture == 'encoder-decoder':
-    C = 512
-elif args.architecture == 'sd-vae':
-    C = 4
-else: 
-    print("invalid architecture")
-
+C = 512 if args.architecture == 'encoder-decoder' else 4
 
 accumulated_means = {}
 total_N = {}
@@ -160,7 +144,7 @@ eps = 1e-5
 for style_path, class_means in style_means.items():
     for class_id, mean_value in class_means.items():
         if class_id not in accumulated_means:
-            accumulated_means[class_id] = 0.0 * np.ones(C)
+            accumulated_means[class_id] = np.zeros(C)
             total_N[class_id] = 0
         N = style_Ns[style_path][class_id]
         accumulated_means[class_id] += N * mean_value
@@ -170,9 +154,8 @@ for class_id in accumulated_means:
     total_N[class_id] += eps
     accumulated_means[class_id] /= total_N[class_id]
 
-with open("sky0_means.txt", "wb") as myFile:
+with open(Path(args.output_dir) / args.multi_ref_means_file, "wb") as myFile:
     pickle.dump(accumulated_means, myFile)
-
 
 accumulated_vars = {}
 total_N = {}
@@ -180,7 +163,7 @@ total_N = {}
 for style_path, class_stds in style_stds.items():
     for class_id, std_value in class_stds.items():
         if class_id not in accumulated_vars:
-            accumulated_vars[class_id] = 0.0 * np.ones(C)
+            accumulated_vars[class_id] = np.zeros(C)
             total_N[class_id] = 0
         N = style_Ns[style_path][class_id]
         mean_value = style_means[style_path][class_id]
@@ -194,9 +177,8 @@ for class_id in accumulated_vars:
     accumulated_vars[class_id] /= (total_N[class_id] - 1)
     accumulated_stds[class_id] = np.sqrt(accumulated_vars[class_id])
 
-with open("sky0_stds.txt", "wb") as myFile:
+with open(Path(args.output_dir) / args.multi_ref_stds_file, "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
-
 
 
 

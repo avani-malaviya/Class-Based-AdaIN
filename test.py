@@ -109,7 +109,7 @@ parser.add_argument('--style_dir', type=str,
                     help='Directory path to a batch of style images')
 parser.add_argument('--style_files', type=str,
                     help='Comma separated paths to .txt files containing class based style means and stds respectively')
-parser.add_argument('--content_mask_dir',type=str, required=True, 
+parser.add_argument('--content_mask_dir',type=str, default='input/content/GTA/labels/', 
                     help='Directory path to segmantation Mask of content images')
 parser.add_argument('--style_mask_dir',type=str, 
                     help='Directory path to segmantation Mask of style images')
@@ -140,6 +140,8 @@ parser.add_argument('--alpha', type=float, default=1.0,
 
 args = parser.parse_args()
 
+# Either --content or --contentDir should be given.
+assert (args.style or args.style_dir or args.style_files)
 if args.style_files:
     from function import adaptive_instance_normalization_saved_stats as adain
 else:
@@ -171,8 +173,6 @@ else:
     style_means, style_stds = args.style_files.split(',')
 
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 if args.architecture == 'encoder-decoder':
     decoder = net.decoder
     vgg = net.vgg
@@ -189,7 +189,7 @@ elif args.architecture == 'sd-vae':
     vae = pipe.vae
     vae = vae.to(device)
 else: 
-    print("invalid architecture")
+    raise ValueError("Invalid architecture")
 
 
 content_tf = test_transform(args.content_size, args.crop)

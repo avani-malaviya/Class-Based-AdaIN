@@ -74,13 +74,13 @@ def adjust_learning_rate(optimizer, iteration_count):
 
 parser = argparse.ArgumentParser()
 # Basic options
-parser.add_argument('--content_dir', type=str, required=True,
+parser.add_argument('--content_dir', type=str, default="input/content/GTA/images/test/",
                     help='Directory path to a batch of content images')
-parser.add_argument('--style_dir', type=str, required=True,
+parser.add_argument('--style_dir', type=str, default="input/style/cityscapes/images/train/",
                     help='Directory path to a batch of style images')
-parser.add_argument('--content_mask_dir',type=str, required=True, 
+parser.add_argument('--content_mask_dir',type=str, default="input/content/GTA/labels/", 
                     help='Directory path to segmantation Mask of content images')
-parser.add_argument('--style_mask_dir',type=str, required=True, 
+parser.add_argument('--style_mask_dir',type=str, default="input/style/cityscapes/labels/", 
                     help='Directory path to segmantation Mask of style images')
 parser.add_argument('--vgg', type=str, default='models/vgg_normalised.pth')
 parser.add_argument('--decoder', type=str, default='models/decoder.pth',
