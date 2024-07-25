@@ -140,6 +140,9 @@ with open('style_means.json', 'w') as f:
 with open('style_stds.json', 'w') as f:
     json.dump(serializable_style_stds, f)
 
+with open('style_Ns.json', 'w') as f:
+    json.dump(serializable_style_Ns, f)
+
 
 if args.architecture == 'encoder-decoder':
     C = 512
@@ -167,7 +170,7 @@ for class_id in accumulated_means:
     total_N[class_id] += eps
     accumulated_means[class_id] /= total_N[class_id]
 
-with open("multi_ref_means.txt", "wb") as myFile:
+with open("sky0_means.txt", "wb") as myFile:
     pickle.dump(accumulated_means, myFile)
 
 
@@ -191,7 +194,7 @@ for class_id in accumulated_vars:
     accumulated_vars[class_id] /= (total_N[class_id] - 1)
     accumulated_stds[class_id] = np.sqrt(accumulated_vars[class_id])
 
-with open("multi_ref_stds.txt", "wb") as myFile:
+with open("sky0_stds.txt", "wb") as myFile:
     pickle.dump(accumulated_stds, myFile)
 
 
